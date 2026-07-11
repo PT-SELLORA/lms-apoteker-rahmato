@@ -67,17 +67,28 @@ export default function Navbar() {
             </a>
           ))}
 
-          {/* Dashboard link — only when logged in */}
-          {user && (
-            <Link
-              to={user.realm === 'mentor' ? '/mentor' : '/kelas'}
-              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition ${
-                location.pathname !== '/' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              {user.realm === 'mentor' ? 'Panel Mentor' : 'Dashboard Saya'}
-            </Link>
-          )}
+          {/* Separator */}
+          <span className="text-white/10 px-1 select-none">|</span>
+
+          {/* Dashboard Murid */}
+          <Link
+            to="/kelas"
+            className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition ${
+              location.pathname === '/kelas' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            Dashboard Murid
+          </Link>
+
+          {/* Dashboard Dosen */}
+          <Link
+            to="/mentor"
+            className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition ${
+              location.pathname === '/mentor' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            Dashboard Dosen
+          </Link>
         </div>
 
         {/* Right: SSO + mobile toggle */}
@@ -141,15 +152,20 @@ export default function Navbar() {
               {label}
             </a>
           ))}
-          {user && (
-            <Link
-              to={user.realm === 'mentor' ? '/mentor' : '/kelas'}
-              onClick={() => setMobileOpen(false)}
-              className="block px-4 py-2.5 rounded-lg text-sm font-semibold text-emerald-400 hover:bg-emerald-500/10"
-            >
-              {user.realm === 'mentor' ? 'Panel Mentor' : 'Dashboard Saya'}
-            </Link>
-          )}
+          <Link
+            to="/kelas"
+            onClick={() => setMobileOpen(false)}
+            className={`block px-4 py-2.5 rounded-lg text-sm font-semibold ${location.pathname === '/kelas' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-300 hover:bg-white/5'}`}
+          >
+            Dashboard Murid
+          </Link>
+          <Link
+            to="/mentor"
+            onClick={() => setMobileOpen(false)}
+            className={`block px-4 py-2.5 rounded-lg text-sm font-semibold ${location.pathname === '/mentor' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-300 hover:bg-white/5'}`}
+          >
+            Dashboard Dosen
+          </Link>
         </div>
       )}
     </nav>

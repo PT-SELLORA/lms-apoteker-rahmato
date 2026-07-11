@@ -237,7 +237,7 @@ export default function LandingPage({
         </div>
       </motion.div>
 
-      {/* Login CTA Section */}
+      {/* Portal CTA Section */}
       <motion.div
         initial="hidden"
         whileInView="visible"
@@ -248,26 +248,68 @@ export default function LandingPage({
         <div className="max-w-3xl mb-16">
           <motion.h2 variants={fadeUpVariants} className="text-4xl md:text-5xl font-black font-display text-white tracking-tighter uppercase">AKSES PLATFORM</motion.h2>
           <motion.p variants={fadeUpVariants} className="text-slate-400 text-lg mt-4 max-w-2xl">
-            Login dengan akun Ventera SSO untuk mengakses Dashboard Murid atau Dashboard Mentor Apoteker Rahmato.
+            Dua portal terpisah — satu untuk murid yang ingin belajar, satu untuk dosen yang mengelola kelas.
           </motion.p>
         </div>
 
-        <motion.div variants={fadeUpVariants} className="p-8 border border-white/20 bg-[#111111] flex flex-col sm:flex-row items-center justify-between gap-6 hover:border-emerald-500 transition-colors duration-500">
-          <div className="flex items-center gap-6">
-            <div className="p-4 bg-emerald-500 text-black">
-              <Users className="h-6 w-6" />
-            </div>
+        <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-2 gap-0 border border-white/20">
+
+          {/* Portal Murid */}
+          <motion.div variants={fadeUpVariants} className="bg-[#111111] p-10 border-b md:border-b-0 md:border-r border-white/20 flex flex-col justify-between gap-8 group hover:bg-[#161616] transition-colors duration-300">
             <div>
-              <p className="font-display text-2xl font-black text-white mb-1 uppercase tracking-tighter">MASUK KE PLATFORM</p>
-              <p className="text-sm text-slate-400">Login dengan akun SSO Anda untuk mulai belajar atau mengelola kelas.</p>
+              <div className="flex items-center gap-4 mb-6">
+                <div className="p-4 bg-emerald-500 text-black shrink-0">
+                  <GraduationCap className="h-7 w-7" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold tracking-widest uppercase text-emerald-500 mb-1">Portal Murid</p>
+                  <h3 className="font-display text-2xl font-black text-white uppercase tracking-tighter leading-none">Dashboard Murid</h3>
+                </div>
+              </div>
+              <ul className="space-y-2 text-sm text-slate-400">
+                <li className="flex items-center gap-2"><Award className="h-4 w-4 text-emerald-500 shrink-0" /> Akses kelas & materi video</li>
+                <li className="flex items-center gap-2"><Award className="h-4 w-4 text-emerald-500 shrink-0" /> Kuis evaluasi & sertifikat</li>
+                <li className="flex items-center gap-2"><Award className="h-4 w-4 text-emerald-500 shrink-0" /> Forum diskusi & konsultasi</li>
+                <li className="flex items-center gap-2"><Award className="h-4 w-4 text-emerald-500 shrink-0" /> Riwayat transaksi & tagihan</li>
+              </ul>
             </div>
-          </div>
-          <a
-            href="/auth/login"
-            className="w-full sm:w-auto py-4 px-8 border border-emerald-500 text-emerald-500 hover:bg-emerald-500 hover:text-black font-black uppercase tracking-widest transition-all duration-300 shrink-0 text-center"
-          >
-            Masuk Sekarang
-          </a>
+            <a
+              href="/auth/login"
+              className="flex items-center justify-between py-4 px-6 border border-emerald-500 text-emerald-500 hover:bg-emerald-500 hover:text-black font-black uppercase tracking-widest transition-all duration-300 text-sm"
+            >
+              <span>Masuk sebagai Murid</span>
+              <ArrowRight className="h-4 w-4" />
+            </a>
+          </motion.div>
+
+          {/* Portal Dosen */}
+          <motion.div variants={fadeUpVariants} className="bg-[#111111] p-10 flex flex-col justify-between gap-8 group hover:bg-[#161616] transition-colors duration-300">
+            <div>
+              <div className="flex items-center gap-4 mb-6">
+                <div className="p-4 bg-white/10 text-white shrink-0">
+                  <Users className="h-7 w-7" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold tracking-widest uppercase text-slate-400 mb-1">Portal Dosen</p>
+                  <h3 className="font-display text-2xl font-black text-white uppercase tracking-tighter leading-none">Dashboard Dosen</h3>
+                </div>
+              </div>
+              <ul className="space-y-2 text-sm text-slate-400">
+                <li className="flex items-center gap-2"><Award className="h-4 w-4 text-slate-500 shrink-0" /> Statistik pendaftar & revenue</li>
+                <li className="flex items-center gap-2"><Award className="h-4 w-4 text-slate-500 shrink-0" /> Kelola generasi & kelas</li>
+                <li className="flex items-center gap-2"><Award className="h-4 w-4 text-slate-500 shrink-0" /> Upload & rilis materi ajar</li>
+                <li className="flex items-center gap-2"><Award className="h-4 w-4 text-slate-500 shrink-0" /> Monitor forum & konsultasi</li>
+              </ul>
+            </div>
+            <a
+              href="/auth/login"
+              className="flex items-center justify-between py-4 px-6 border border-white/20 text-white hover:bg-white hover:text-black font-black uppercase tracking-widest transition-all duration-300 text-sm"
+            >
+              <span>Masuk sebagai Dosen</span>
+              <ArrowRight className="h-4 w-4" />
+            </a>
+          </motion.div>
+
         </motion.div>
       </motion.div>
 
