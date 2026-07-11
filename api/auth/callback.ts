@@ -25,7 +25,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
     });
-    res.writeHead(303, { Location: '/' });
+    const realm = (claims as Record<string, unknown>).realm as string | undefined;
+    const redirectTo = realm === 'mentor' ? '/mentor' : '/kelas';
+    res.writeHead(303, { Location: redirectTo });
     res.end();
   } catch (err) {
     console.error('[SSO callback]', err);

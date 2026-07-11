@@ -6,8 +6,6 @@ import {
   Award,
   ArrowRight,
   Sparkles,
-  ChevronRight,
-  Shield,
   Stethoscope,
   Heart,
 } from 'lucide-react';
@@ -18,7 +16,6 @@ interface LandingPageProps {
   classes: Class[];
   students: User[];
   currentStudentId: string;
-  onSelectRole: (role: 'mentor' | 'student', studentId?: string) => void;
 }
 
 const containerVariants = {
@@ -62,7 +59,6 @@ export default function LandingPage({
   classes,
   students,
   currentStudentId,
-  onSelectRole,
 }: LandingPageProps) {
   const totalStudentsCount = classes.reduce((acc, c) => acc + c.studentsCount, 0);
   const activeGenId = 'gen6';
@@ -240,8 +236,8 @@ export default function LandingPage({
         </div>
       </motion.div>
 
-      {/* Role Switcher Sandbox Prompt */}
-      <motion.div 
+      {/* Login CTA Section */}
+      <motion.div
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, margin: "-100px" }}
@@ -249,79 +245,28 @@ export default function LandingPage({
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32 border-b border-white/20"
       >
         <div className="max-w-3xl mb-16">
-          <motion.h2 variants={fadeUpVariants} className="text-4xl md:text-5xl font-black font-display text-white tracking-tighter uppercase">SANDBOX ENVIRONMENT</motion.h2>
+          <motion.h2 variants={fadeUpVariants} className="text-4xl md:text-5xl font-black font-display text-white tracking-tighter uppercase">AKSES PLATFORM</motion.h2>
           <motion.p variants={fadeUpVariants} className="text-slate-400 text-lg mt-4 max-w-2xl">
-            Sebagai penguji, Anda dapat bebas beralih peran untuk melihat alur pendaftaran otomatis, Dashboard Murid, dan Dashboard Admin/Mentor Apoteker Rahmato.
+            Login dengan akun Ventera SSO untuk mengakses Dashboard Murid atau Dashboard Mentor Apoteker Rahmato.
           </motion.p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-0 border border-white/20">
-          {/* Mentor Role card */}
-          <motion.div variants={scaleUpVariants} className="group border-b md:border-b-0 md:border-r border-white/20 bg-[#111111] p-8 hover:bg-[#1a1a1a] transition-all duration-500 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-8">
-                <span className="px-3 py-1 bg-emerald-500 text-black text-[10px] tracking-widest font-bold uppercase">Mentor</span>
-                <Award className="h-6 w-6 text-emerald-500" />
-              </div>
-              <h4 className="font-display text-3xl font-black text-white mb-3 uppercase tracking-tighter">Apoteker Rahmato</h4>
-              <p className="text-sm text-slate-400 leading-relaxed">Kelola sirkulasi 6 Generasi, edit materi, analisis pendaftar, monitoring kuis, dan kelola transaksi.</p>
-            </div>
-            <button
-              onClick={() => onSelectRole('mentor')}
-              className="mt-12 w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2"
-            >
-              <span>Akses Dashboard</span>
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          </motion.div>
-
-          {/* Preseeded Students */}
-          {students.map((student, idx) => (
-            <motion.div
-              variants={scaleUpVariants}
-              key={student.id}
-              className={`group bg-black p-8 hover:bg-[#1a1a1a] transition-all duration-500 flex flex-col justify-between ${idx === 0 ? 'border-b md:border-b-0 md:border-r border-white/20' : ''}`}
-            >
-              <div>
-                <div className="flex items-center justify-between mb-8">
-                  <span className="px-3 py-1 bg-white text-black text-[10px] tracking-widest font-bold uppercase">
-                    {student.profession}
-                  </span>
-                  <img src={student.avatar} alt={student.name} className="w-10 h-10 object-cover grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500" />
-                </div>
-                <h4 className="font-display text-3xl font-black text-white mb-3 uppercase tracking-tighter">{student.name.split(',')[0]}</h4>
-                <p className="text-sm text-slate-400 leading-relaxed">
-                  Terdaftar di {student.enrolledClasses.length} kelas Generasi 6. Akses materi, kerjakan kuis, dan interaksi forum.
-                </p>
-              </div>
-              <button
-                onClick={() => onSelectRole('student', student.id)}
-                className="mt-12 w-full py-4 border border-white/20 hover:bg-white text-white hover:text-black font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2"
-              >
-                <span>Belajar Sekarang</span>
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Guest Role / Create new user */}
-        <motion.div variants={fadeUpVariants} className="mt-8 p-8 border border-white/20 bg-[#111111] flex flex-col sm:flex-row items-center justify-between gap-6 hover:border-emerald-500 transition-colors duration-500">
+        <motion.div variants={fadeUpVariants} className="p-8 border border-white/20 bg-[#111111] flex flex-col sm:flex-row items-center justify-between gap-6 hover:border-emerald-500 transition-colors duration-500">
           <div className="flex items-center gap-6">
             <div className="p-4 bg-emerald-500 text-black">
               <Users className="h-6 w-6" />
             </div>
             <div>
-              <p className="font-display text-2xl font-black text-white mb-1 uppercase tracking-tighter">COBA PENDAFTARAN MURID BARU</p>
-              <p className="text-sm text-slate-400">Pilih "Uji Coba Guest", beli kelas di katalog, dan sistem otomatis mendaftarkan Anda.</p>
+              <p className="font-display text-2xl font-black text-white mb-1 uppercase tracking-tighter">MASUK KE PLATFORM</p>
+              <p className="text-sm text-slate-400">Login dengan akun SSO Anda untuk mulai belajar atau mengelola kelas.</p>
             </div>
           </div>
-          <button
-            onClick={() => onSelectRole('student', 'guest')}
-            className="w-full sm:w-auto py-4 px-8 border border-emerald-500 text-emerald-500 hover:bg-emerald-500 hover:text-black font-black uppercase tracking-widest transition-all duration-300 shrink-0"
+          <a
+            href="/auth/login"
+            className="w-full sm:w-auto py-4 px-8 border border-emerald-500 text-emerald-500 hover:bg-emerald-500 hover:text-black font-black uppercase tracking-widest transition-all duration-300 shrink-0 text-center"
           >
-            Uji Coba Guest
-          </button>
+            Masuk Sekarang
+          </a>
         </motion.div>
       </motion.div>
 
@@ -376,13 +321,13 @@ export default function LandingPage({
                           Rp {cls.price.toLocaleString('id-ID')}
                         </div>
                       </div>
-                      <button
-                        onClick={() => onSelectRole('student', 'guest')}
+                      <a
+                        href="/auth/login"
                         className="w-10 h-10 flex items-center justify-center border border-white/20 group-hover:bg-white group-hover:text-black text-white transition-all duration-300"
                         title="Beli kelas ini"
                       >
                         <ArrowRight className="h-4 w-4" />
-                      </button>
+                      </a>
                     </div>
                   </motion.div>
                 );
@@ -457,19 +402,19 @@ export default function LandingPage({
               Daftar sekarang dan dapatkan akses instan ke ratusan studi kasus riil, kalkulasi dosis interaktif, dan bimbingan langsung dari Apoteker Rahmato.
             </p>
             <div className="pt-8 flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <button 
-                onClick={() => onSelectRole('student', 'guest')}
+              <a
+                href="/auth/login"
                 className="w-full sm:w-auto px-10 py-5 bg-emerald-500 hover:bg-emerald-400 text-black font-black tracking-widest uppercase transition-all duration-300 flex items-center justify-center gap-2 hover:scale-105"
               >
                 <span>Beli Kelas Sekarang</span>
                 <ArrowRight className="h-5 w-5" />
-              </button>
-              <button 
-                onClick={() => onSelectRole('student', 'student1')}
-                className="w-full sm:w-auto px-10 py-5 bg-[#111111] hover:bg-white border border-white/20 hover:border-white text-white hover:text-black font-black tracking-widest uppercase transition-all duration-300"
+              </a>
+              <a
+                href="/auth/login"
+                className="w-full sm:w-auto px-10 py-5 bg-[#111111] hover:bg-white border border-white/20 hover:border-white text-white hover:text-black font-black tracking-widest uppercase transition-all duration-300 text-center"
               >
-                Lihat Demo Murid
-              </button>
+                Masuk ke Dashboard
+              </a>
             </div>
           </motion.div>
         </div>
