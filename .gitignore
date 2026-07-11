@@ -1,0 +1,22 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+.vercel
+
+# Large scraper/utility files not part of the app
+yt_data.json
+yt-dlp
+assets/
+fetch_all.cjs
+fix_tab.cjs
+scrape_yt.cjs
+scrape_yt.js
+schedule.js
+test_json.js
+user_prompt.txt
+metadata.json
