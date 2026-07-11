@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'motion/react';
+import { CheckCircle2, XCircle, X } from 'lucide-react';
 import { getOrInitState, saveState, MENTOR_RAHMATO, GENERATIONS } from './data/coursesData';
 import { loadClasses } from './lib/api';
 import { Class, User, Transaction, QuizAttempt, ForumPost, Material, Notification, DirectMessage } from './types';
@@ -67,15 +69,104 @@ export default function App() {
   const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
   const [messages, setMessages] = useState<DirectMessage[]>(MOCK_MESSAGES);
 
+  // Notifikasi hasil pembayaran Xendit setelah redirect kembali dari Xendit
+  const [paymentNotice, setPaymentNotice] = useState<
+    { type: 'success' | 'failed'; className?: string } | null
+  >(null);
+
   // Ventera SSO session (null = not logged in, loading = checking)
   const { user: ssoUser, loading: ssoLoading } = useAuth();
 
   // Initialize data on mount
   useEffect(() => {
     const data = getOrInitState();
-    setStudents(data.students);
+
+    // --- Tangani redirect kembali dari pembayaran Xendit (?payment=success|failed) ---
+    let students = data.students;
+    let transactions = data.transactions;
+    const params = new URLSearchParams(window.location.search);
+    const paymentResult = params.get('payment');
+
+    if (paymentResult === 'success' || paymentResult === 'failed') {
+      let pending: {
+        classId?: string;
+        studentId?: string;
+        studentName?: string;
+        studentEmail?: string;
+        amount?: number;
+      } = {};
+      try {
+        pending = JSON.parse(localStorage.getItem('lms_pending_checkout') ?? '{}');
+      } catch {
+        pending = {};
+      }
+      const cls = data.classes.find((c) => c.id === (params.get('class') ?? pending.classId));
+
+      if (paymentResult === 'success' && pending.classId && pending.studentId) {
+        const sid = pending.studentId;
+        const cid = pending.classId;
+        // Tandai kelas aktif untuk peserta SSO (upsert bila belum ada di store lokal).
+        const exists = data.students.some((s) => s.id === sid);
+        students = exists
+          ? data.students.map((s) =>
+              s.id === sid && !s.enrolledClasses.includes(cid)
+                ? { ...s, enrolledClasses: [...s.enrolledClasses, cid] }
+                : s
+            )
+          : [
+              ...data.students,
+              {
+                id: sid,
+                name: pending.studentName ?? 'Peserta',
+                email: pending.studentEmail ?? '',
+                role: 'student',
+                avatar:
+                  'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=60',
+                profession: 'Lainnya',
+                enrolledClasses: [cid],
+                completedClasses: [],
+              } as User,
+            ];
+        const buyer = students.find((s) => s.id === sid);
+        if (cls && buyer) {
+          const newTx: Transaction = {
+            id: `TX-${Date.now().toString().slice(-6)}`,
+            userId: buyer.id,
+            userName: buyer.name,
+            userEmail: buyer.email,
+            classId: cls.id,
+            className: cls.name,
+            generationName: cls.generationName,
+            amount: pending.amount ?? cls.price,
+            status: 'success',
+            paymentMethod: 'Xendit',
+            createdAt: new Date().toISOString(),
+          };
+          transactions = [newTx, ...data.transactions];
+        }
+        saveState({
+          classes: data.classes,
+          students,
+          forumPosts: data.forumPosts,
+          transactions,
+          attempts: data.attempts,
+        });
+        setPaymentNotice({ type: 'success', className: cls?.name });
+        // Bawa peserta ke dashboard kelasnya (sekaligus membersihkan query string).
+        navigate('/kelas', { replace: true });
+      } else if (paymentResult === 'failed') {
+        setPaymentNotice({ type: 'failed', className: cls?.name });
+        navigate('/kelas', { replace: true });
+      } else {
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+
+      localStorage.removeItem('lms_pending_checkout');
+    }
+
+    setStudents(students);
     setForumPosts(data.forumPosts);
-    setTransactions(data.transactions);
+    setTransactions(transactions);
     setAttempts(data.attempts);
 
     const storedCustomMat = localStorage.getItem('lms_custom_materials');
@@ -377,6 +468,44 @@ export default function App() {
     <div className="min-h-screen flex flex-col font-sans select-none antialiased bg-[#0F1115] text-[#F3F4F6]">
       <SyringeCursor />
       <Navbar notifications={notifications} onMarkNotifRead={handleMarkNotifRead} />
+
+      {/* Notifikasi hasil pembayaran Xendit */}
+      <AnimatePresence>
+        {paymentNotice && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden z-50"
+          >
+            <div
+              className={`px-4 py-2.5 flex items-center justify-between gap-3 text-sm border-b ${
+                paymentNotice.type === 'success'
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                  : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+              }`}
+            >
+              <span className="flex items-center gap-2 font-semibold">
+                {paymentNotice.type === 'success' ? (
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                ) : (
+                  <XCircle className="h-4 w-4 shrink-0" />
+                )}
+                {paymentNotice.type === 'success'
+                  ? `Pembayaran diterima${paymentNotice.className ? ` — kelas "${paymentNotice.className}" kini aktif` : ''}. Terima kasih!`
+                  : `Pembayaran belum selesai${paymentNotice.className ? ` untuk kelas "${paymentNotice.className}"` : ''}. Silakan coba lagi.`}
+              </span>
+              <button
+                onClick={() => setPaymentNotice(null)}
+                className="text-current/70 hover:text-current shrink-0"
+                aria-label="Tutup notifikasi"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <Routes>
         <Route path="/" element={

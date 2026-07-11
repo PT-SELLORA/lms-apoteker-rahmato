@@ -4,9 +4,18 @@ dist/
 coverage/
 .DS_Store
 *.log
+
+# Environment / secrets — never commit real keys
+.env
+.env.local
+.env.*.local
 .env*
 !.env.example
+
 .vercel
+
+# Supabase local temp state
+supabase/.temp/
 
 # Large scraper/utility files not part of the app
 yt_data.json

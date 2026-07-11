@@ -329,6 +329,62 @@ export async function loadAttempts(userId?: string): Promise<QuizAttempt[]> {
 }
 
 // =============================================================================
+// PAYMENTS — Xendit via Internal Ventera gateway (prefix LMSRHMT)
+// =============================================================================
+
+export interface CreateInvoiceResult {
+  invoice_id: string;
+  external_id: string;
+  invoice_url: string;
+  amount: number;
+}
+
+/**
+ * Membuat invoice Xendit untuk sebuah kelas lewat edge function
+ * `lmsrhmt-create-invoice`. Mengembalikan invoice_url (halaman pembayaran
+ * Xendit) yang harus dibuka/diarahkan ke user.
+ *
+ * Harga diambil ulang di server dari tabel classes — nominal dari client
+ * tidak dipercaya.
+ */
+export async function createXenditInvoice(params: {
+  classId: string;
+  buyerName: string;
+  buyerEmail: string;
+  /** Base URL untuk redirect success/failed Xendit (default: origin server). */
+  redirectBase?: string;
+}): Promise<CreateInvoiceResult> {
+  const { data, error } = await supabase.functions.invoke('lmsrhmt-create-invoice', {
+    body: {
+      class_id: params.classId,
+      buyer_name: params.buyerName,
+      buyer_email: params.buyerEmail,
+      redirect_base: params.redirectBase,
+    },
+  });
+
+  if (error) {
+    // supabase.functions.invoke menyembunyikan body error untuk respons non-2xx.
+    // Coba baca JSON { error } yang sebenarnya dari response.
+    type WithContext = Error & { context?: { json?: () => Promise<unknown> } };
+    const ctx = (error as WithContext).context;
+    if (ctx?.json) {
+      try {
+        const payload = (await ctx.json()) as { error?: string };
+        if (payload?.error) throw new Error(payload.error);
+      } catch (e) {
+        if (e instanceof Error && e.message !== error.message) throw e;
+      }
+    }
+    throw new Error(error.message);
+  }
+
+  if (data?.error) throw new Error(data.error);
+  if (!data?.invoice_url) throw new Error('Server tidak mengembalikan invoice_url.');
+  return data as CreateInvoiceResult;
+}
+
+// =============================================================================
 // ENROLLMENTS
 // =============================================================================
 
