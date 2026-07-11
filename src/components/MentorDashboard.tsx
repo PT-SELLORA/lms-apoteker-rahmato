@@ -142,63 +142,41 @@ export default function MentorDashboard({
   return (
     <div className="bg-[#0F1115] min-h-screen text-[#F3F4F6]">
       
-      {/* Top Banner / Mentor Identity */}
-      <div className="bg-[#16181D] text-white border-b border-white/10 sticky top-0 z-30 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          
-          <div className="flex items-center gap-4">
-            <img
-              src={MENTOR_RAHMATO.avatar}
-              alt="Apoteker Rahmato"
-              className="w-12 h-12 rounded-xl object-cover ring-2 ring-emerald-500"
-            />
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="font-extrabold text-white text-base sm:text-lg">Panel Mentor: Apoteker Rahmato</h2>
-                <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold rounded-full uppercase">
-                  Single Mentor / Admin
-                </span>
-              </div>
-              <p className="text-slate-400 text-xs">{MENTOR_RAHMATO.email} • ID: MENTOR-001</p>
-            </div>
-          </div>
+      {/* Tab Navigation */}
+      <div className="bg-[#16181D] text-white border-b border-white/10 sticky top-14 z-30 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center gap-1 sm:gap-2 overflow-x-auto text-xs sm:text-sm">
+          {[
+            { id: 'stats', label: 'Dashboard Stats', icon: TrendingUp },
+            { id: 'generations', label: '6 Generasi', icon: Layers },
+            { id: 'students', label: 'Data Mahasiswa', icon: Users },
+            { id: 'transactions', label: 'Billing', icon: DollarSign },
+            { id: 'content-editor', label: 'Rilis Materi', icon: PlusCircle },
+            { id: 'forum', label: 'Konsultasi', icon: MessageSquare },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isSelected = adminTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setAdminTab(tab.id as any)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold transition shrink-0 cursor-pointer ${
+                  isSelected
+                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-950/40'
+                    : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
 
-          {/* Tab Selection */}
-          <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto pb-1 md:pb-0 text-xs sm:text-sm">
-            {[
-              { id: 'stats', label: 'Dashboard Stats', icon: TrendingUp },
-              { id: 'generations', label: '6 Generasi & 6 Kelas', icon: Layers },
-              { id: 'students', label: 'Data Mahasiswa', icon: Users },
-              { id: 'transactions', label: 'Billing Keuangan', icon: DollarSign },
-              { id: 'content-editor', label: 'Rilis Materi', icon: PlusCircle },
-              { id: 'forum', label: 'Konsultasi Forum', icon: MessageSquare },
-            ].map((tab) => {
-              const Icon = tab.icon;
-              const isSelected = adminTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setAdminTab(tab.id as any)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold transition shrink-0 cursor-pointer ${
-                    isSelected
-                      ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-950/40'
-                      : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-
-            <button
-              onClick={onLogOut}
-              className="text-xs px-3 py-1.5 border border-white/10 hover:bg-white/5 text-slate-300 rounded-lg transition ml-4 shrink-0 cursor-pointer"
-            >
-              Keluar Panel
-            </button>
-          </div>
-
+          <button
+            onClick={onLogOut}
+            className="text-xs px-3 py-1.5 border border-white/10 hover:bg-white/5 text-slate-300 rounded-lg transition ml-auto shrink-0 cursor-pointer"
+          >
+            Keluar Panel
+          </button>
         </div>
       </div>
 

@@ -336,103 +336,82 @@ export default function StudentDashboard({
 
   return (
     <div className="bg-[#0F1115] text-slate-200 min-h-screen font-sans">
-      {/* Upper Navigation / Profile Banner */}
-      <div className="bg-[#16181D] border-b border-white/10 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          
-          <div className="flex items-center gap-4">
-            <img
-              src={currentUser.avatar}
-              alt={currentUser.name}
-              className="w-12 h-12 rounded-full object-cover ring-2 ring-emerald-500"
-              id="student_avatar_img"
-            />
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="font-display font-medium text-white text-lg md:text-xl">{currentUser.name}</h2>
-                <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-semibold rounded-full">
-                  {currentUser.profession}
-                </span>
-              </div>
-              <p className="text-slate-400 text-xs">{currentUser.email}</p>
-            </div>
-          </div>
+      {/* Tab Navigation */}
+      <div className="bg-[#16181D] border-b border-white/10 sticky top-14 z-30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center gap-2 sm:gap-4 overflow-x-auto">
+          <button
+            onClick={() => {
+              setActiveTab('my-classes');
+              setSelectedClassId(null);
+            }}
+            className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold transition shrink-0 ${
+              activeTab === 'my-classes' && !selectedClassId
+                ? 'bg-emerald-500 text-black shadow-md shadow-emerald-500/10 font-bold'
+                : 'text-slate-400 hover:bg-white/5'
+            }`}
+          >
+            <BookOpen className="h-4 w-4" />
+            <span>Kelas Saya</span>
+            {myClasses.length > 0 && (
+              <span className={`ml-1 text-xs px-1.5 py-0.5 rounded-full ${
+                activeTab === 'my-classes' && !selectedClassId ? 'bg-black text-emerald-400 font-bold' : 'bg-white/10 text-slate-300'
+              }`}>
+                {myClasses.length}
+              </span>
+            )}
+          </button>
 
-          <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto pb-1 md:pb-0">
-            <button
-              onClick={() => {
-                setActiveTab('my-classes');
-                setSelectedClassId(null);
-              }}
-              className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold transition shrink-0 ${
-                activeTab === 'my-classes' && !selectedClassId
-                  ? 'bg-emerald-500 text-black shadow-md shadow-emerald-500/10 font-bold'
-                  : 'text-slate-400 hover:bg-white/5'
-              }`}
-            >
-              <BookOpen className="h-4 w-4" />
-              <span>Kelas Saya</span>
-              {myClasses.length > 0 && (
-                <span className={`ml-1 text-xs px-1.5 py-0.5 rounded-full ${
-                  activeTab === 'my-classes' && !selectedClassId ? 'bg-black text-emerald-400 font-bold' : 'bg-white/10 text-slate-300'
-                }`}>
-                  {myClasses.length}
-                </span>
-              )}
-            </button>
+          <button
+            onClick={() => {
+              setActiveTab('catalog');
+              setSelectedClassId(null);
+            }}
+            className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold transition shrink-0 ${
+              activeTab === 'catalog'
+                ? 'bg-emerald-500 text-black shadow-md shadow-emerald-500/10 font-bold'
+                : 'text-slate-400 hover:bg-white/5'
+            }`}
+          >
+            <ShoppingBag className="h-4 w-4" />
+            <span>Beli Kelas Baru</span>
+          </button>
 
-            <button
-              onClick={() => {
-                setActiveTab('catalog');
-                setSelectedClassId(null);
-              }}
-              className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold transition shrink-0 ${
-                activeTab === 'catalog'
-                  ? 'bg-emerald-500 text-black shadow-md shadow-emerald-500/10 font-bold'
-                  : 'text-slate-400 hover:bg-white/5'
-              }`}
-            >
-              <ShoppingBag className="h-4 w-4" />
-              <span>Beli Kelas Baru</span>
-            </button>
+          <button
+            onClick={() => {
+              setActiveTab('transactions');
+              setSelectedClassId(null);
+            }}
+            className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold transition shrink-0 ${
+              activeTab === 'transactions'
+                ? 'bg-emerald-500 text-black shadow-md shadow-emerald-500/10 font-bold'
+                : 'text-slate-400 hover:bg-white/5'
+            }`}
+          >
+            <Receipt className="h-4 w-4" />
+            <span>Riwayat Tagihan</span>
+          </button>
 
-            <button
-              onClick={() => {
-                setActiveTab('transactions');
-                setSelectedClassId(null);
-              }}
-              className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold transition shrink-0 ${
-                activeTab === 'transactions'
-                  ? 'bg-emerald-500 text-black shadow-md shadow-emerald-500/10 font-bold'
-                  : 'text-slate-400 hover:bg-white/5'
-              }`}
-            >
-              <Receipt className="h-4 w-4" />
-              <span>Riwayat Tagihan</span>
-            </button>
+          <button
+            onClick={() => {
+              setActiveTab('certificates');
+              setSelectedClassId(null);
+            }}
+            className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold transition shrink-0 ${
+              activeTab === 'certificates'
+                ? 'bg-emerald-500 text-black shadow-md shadow-emerald-500/10 font-bold'
+                : 'text-slate-400 hover:bg-white/5'
+            }`}
+          >
+            <Award className="h-4 w-4" />
+            <span>Sertifikat</span>
+          </button>
 
-            <button
-              onClick={() => {
-                setActiveTab('certificates');
-                setSelectedClassId(null);
-              }}
-              className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold transition shrink-0 ${
-                activeTab === 'certificates'
-                  ? 'bg-emerald-500 text-black shadow-md shadow-emerald-500/10 font-bold'
-                  : 'text-slate-400 hover:bg-white/5'
-              }`}
-            >
-              <Award className="h-4 w-4" />
-              <span>Sertifikat</span>
-            </button>
-
-            <button
-              onClick={onLogOut}
-              className="text-xs px-3 py-1.5 border border-white/10 hover:bg-white/5 text-slate-400 rounded-lg transition ml-4"
-            >
-              Log Out
-            </button>
-          </div>
+          <button
+            onClick={onLogOut}
+            className="text-xs px-3 py-1.5 border border-white/10 hover:bg-white/5 text-slate-400 rounded-lg transition ml-auto shrink-0"
+          >
+            Log Out
+          </button>
         </div>
       </div>
 

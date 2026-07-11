@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import {
-  LogIn,
-  LogOut,
-  UserCheck,
-} from 'lucide-react';
 import { getOrInitState, saveState, MENTOR_RAHMATO, GENERATIONS } from './data/coursesData';
 import { loadClasses } from './lib/api';
 import { Class, User, Transaction, QuizAttempt, ForumPost, Material } from './types';
@@ -12,6 +7,7 @@ import LandingPage from './components/LandingPage';
 import StudentDashboard from './components/StudentDashboard';
 import MentorDashboard from './components/MentorDashboard';
 import SyringeCursor from './components/SyringeCursor';
+import Navbar from './components/Navbar';
 import { useAuth } from './contexts/AuthContext';
 import type { SSOUser } from './contexts/AuthContext';
 
@@ -312,41 +308,7 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col font-sans select-none antialiased bg-[#0F1115] text-[#F3F4F6]">
       <SyringeCursor />
-
-      {/* Ventera SSO Status Bar */}
-      {!ssoLoading && (
-        <div className="bg-[#0F1115] text-white border-b border-white/5 text-xs px-4 py-1.5 flex items-center justify-between gap-4 z-50">
-          <span className="text-slate-500 font-mono">Ventera SSO</span>
-          {ssoUser ? (
-            <div className="flex items-center gap-3">
-              <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
-                <UserCheck className="h-3.5 w-3.5" />
-                {ssoUser.name ?? ssoUser.phone ?? ssoUser.sub}
-                {ssoUser.realm && (
-                  <span className="text-slate-500 font-normal">· {ssoUser.realm}</span>
-                )}
-              </span>
-              <form action="/auth/logout" method="post" className="inline">
-                <button
-                  type="submit"
-                  className="flex items-center gap-1 text-slate-400 hover:text-white border border-white/10 hover:border-white/20 px-2 py-0.5 rounded transition-colors cursor-pointer"
-                >
-                  <LogOut className="h-3 w-3" />
-                  Logout SSO
-                </button>
-              </form>
-            </div>
-          ) : (
-            <a
-              href="/auth/login"
-              className="flex items-center gap-1 text-slate-400 hover:text-emerald-400 border border-white/10 hover:border-emerald-500/30 px-2 py-0.5 rounded transition-colors"
-            >
-              <LogIn className="h-3 w-3" />
-              Login dengan Ventera SSO
-            </a>
-          )}
-        </div>
-      )}
+      <Navbar />
 
       <Routes>
         <Route path="/" element={

@@ -67,7 +67,7 @@ export default function LandingPage({
   return (
     <div className="bg-[#0F1115] text-slate-200 min-h-screen font-sans selection:bg-emerald-500/30">
       {/* Hero Section */}
-      <div className="relative pt-32 pb-24 px-4 sm:px-6 lg:px-8 border-b border-white/20">
+      <div className="relative pt-20 pb-24 px-4 sm:px-6 lg:px-8 border-b border-white/20">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* Hero text */}
