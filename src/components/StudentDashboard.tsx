@@ -21,6 +21,7 @@ import {
   ChevronRight,
   Sparkles,
   Download,
+  Share2,
   Eye,
   Smile,
   Image as ImageIcon,
@@ -464,6 +465,7 @@ export default function StudentDashboard({
           >
             <Calendar className="h-4 w-4" />
             <span>Jadwal</span>
+            <span className="text-[9px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1 py-0.5 rounded font-bold leading-none">BETA</span>
           </button>
 
           <button
@@ -476,6 +478,7 @@ export default function StudentDashboard({
           >
             <MessageCircle className="h-4 w-4" />
             <span>Pesan</span>
+            <span className="text-[9px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1 py-0.5 rounded font-bold leading-none">BETA</span>
           </button>
 
           <button
@@ -994,6 +997,29 @@ export default function StudentDashboard({
                           <span className="text-[9px] text-slate-500">Mentor Tunggal & Praktisi</span>
                         </div>
                       </div>
+
+                      <div className="mt-4 flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            // [MOCK] PDF generation akan menggunakan react-pdf atau puppeteer setelah backend aktif
+                            window.print();
+                          }}
+                          className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold rounded-lg transition cursor-pointer"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          Unduh PDF
+                        </button>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(`Saya telah menyelesaikan ${cls.name} di Farma Masterclass! #FarmaMasterclass #ApotekerRahmato`);
+                            alert('Link berbagi disalin ke clipboard! [MOCK - Social sharing akan aktif setelah backend]');
+                          }}
+                          className="flex items-center gap-2 px-3 py-2 border border-white/10 hover:border-emerald-500 text-slate-300 hover:text-emerald-400 text-xs font-bold rounded-lg transition cursor-pointer"
+                        >
+                          <Share2 className="h-3.5 w-3.5" />
+                          Bagikan
+                        </button>
+                      </div>
                     </div>
                   ))}
               </div>
@@ -1245,12 +1271,18 @@ export default function StudentDashboard({
                     {/* Choose simulated payment method */}
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-300 block">Pilih Metode Pembayaran (Simulasi):</label>
+                      <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 mb-4">
+                        <Clock className="h-3.5 w-3.5 shrink-0" />
+                        {/* [MOCK] Payment gateway sedang diintegrasikan — transaksi saat ini adalah simulasi */}
+                        Pembayaran otomatis sedang disiapkan · Untuk sementara konfirmasi manual via WhatsApp
+                      </div>
                       <div className="grid grid-cols-1 gap-2">
                         {[
                           'Bank Transfer (BCA)',
                           'Bank Transfer (Mandiri)',
                           'E-Wallet (GoPay)',
                           'E-Wallet (OVO)',
+                          'QRIS',
                         ].map((method) => (
                           <button
                             key={method}
@@ -1306,6 +1338,15 @@ export default function StudentDashboard({
                       <span className="text-slate-500">Metode Bayar:</span>
                       <span className="font-medium text-slate-200">{selectedPayment}</span>
                     </div>
+                  </div>
+
+                  <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl text-sm text-blue-300">
+                    <p className="font-bold mb-1">Konfirmasi Pembayaran</p>
+                    <p className="text-xs text-blue-400">Kirim bukti transfer ke WhatsApp Admin: <strong>+62 812-3456-7890</strong></p>
+                    <p className="text-[10px] text-blue-500 mt-1">
+                      {/* [MOCK] Konfirmasi otomatis akan aktif setelah integrasi payment gateway (Rafli) selesai */}
+                      Konfirmasi otomatis via payment gateway akan segera aktif
+                    </p>
                   </div>
 
                   <button

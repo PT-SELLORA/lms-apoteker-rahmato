@@ -635,6 +635,10 @@ export default function MentorDashboard({
               {materialSuccess && (
                 <div className="p-3 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-xl text-xs font-bold">
                   Sukses! Materi ajar berhasil ditambahkan ke kelas terkait.
+                  <p className="text-xs text-amber-400 mt-2">
+                    {/* [MOCK] Materi disimpan di localStorage — akan dipersist ke Supabase Storage setelah backend aktif */}
+                    ℹ️ Materi tersimpan lokal · Sinkronisasi ke cloud setelah backend aktif
+                  </p>
                 </div>
               )}
 

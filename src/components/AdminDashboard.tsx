@@ -18,8 +18,21 @@ import {
   Award,
   Clock,
   AlertCircle,
+  Upload,
+  Info,
+  Settings,
 } from 'lucide-react';
 import { Class, User, Transaction, QuizAttempt } from '../types';
+
+// [MOCK] Platform stats — ganti dengan API call ketika backend ready
+const PLATFORM_STATS_FALLBACK = {
+  totalAlumni: 35247,
+  totalRevenue: 892_500_000,
+  activeStudents: 847,
+  avgPassRate: 94.2,
+  platformFeePercent: 5,
+  maintenanceFeeMonthly: 500_000,
+};
 
 // Inline Notification type until types.ts is updated by the other agent
 interface Notification {
@@ -45,11 +58,11 @@ interface AdminDashboardProps {
   onRemoveEnrollment: (userId: string, classId: string) => void;
 }
 
-type AdminTab = 'ringkasan' | 'billing' | 'users' | 'notif' | 'laporan';
+type AdminTab = 'ringkasan' | 'billing' | 'users' | 'notif' | 'laporan' | 'pengaturan';
 type BillingFilter = 'all' | 'pending' | 'success' | 'failed';
 type NotifView = 'send' | 'history';
 type NotifTarget = 'all' | 'pending' | 'pick';
-type TemplateKey = 'payment' | 'material' | 'announcement' | 'custom';
+type TemplateKey = 'payment' | 'material' | 'announcement' | 'billing' | 'custom';
 type LaporanFilter = 'all' | 'month' | '3months';
 
 const PROFESSIONS: User['profession'][] = ['Apoteker', 'Dokter', 'Mahasiswa', 'Perawat', 'Bidan', 'Lainnya'];
@@ -58,6 +71,7 @@ const NOTIF_TEMPLATES: Record<TemplateKey, string> = {
   payment: 'Halo {nama}, pembayaran Anda untuk kelas {kelas} telah kami terima. Selamat belajar! 🎓',
   material: 'Halo {nama}, materi baru telah tersedia di kelas {kelas}. Segera akses di dashboard Anda!',
   announcement: 'Halo {nama}, ada pengumuman penting untuk kelas {kelas}. Silakan cek forum diskusi.',
+  billing: 'Halo {nama}, kami menginformasikan bahwa transaksi Anda sebesar Rp {jumlah} telah diproses. Platform fee 5% (Rp {fee}) telah dipotong. Silakan cek dashboard untuk detail.',
   custom: '',
 };
 
@@ -65,6 +79,7 @@ const TEMPLATE_LABELS: Record<TemplateKey, string> = {
   payment: 'Konfirmasi Pembayaran',
   material: 'Materi Baru',
   announcement: 'Pengumuman',
+  billing: 'Tagihan & Fee',
   custom: 'Custom',
 };
 
@@ -277,12 +292,28 @@ export default function AdminDashboard({
 
   const maxProfCount = useMemo(() => Math.max(...studentsByProf.map(([, v]) => v), 1), [studentsByProf]);
 
+  // Total billing platform fee
+  const totalPlatformFee = useMemo(
+    () => filteredTransactions.filter((t) => t.status === 'success').reduce((sum, t) => sum + t.amount * 0.05, 0),
+    [filteredTransactions]
+  );
+  const totalNetKlien = useMemo(
+    () => filteredTransactions.filter((t) => t.status === 'success').reduce((sum, t) => sum + t.amount * 0.95, 0),
+    [filteredTransactions]
+  );
+
   // ===================== HANDLERS =====================
 
   function resolveMessage(template: string, user: User): string {
     const userTx = transactions.find((t) => t.userId === user.id);
     const kelas = userTx?.className || user.enrolledClasses[0] || 'kelas Anda';
-    return template.replace('{nama}', user.name).replace('{kelas}', kelas);
+    const jumlah = userTx?.amount?.toLocaleString('id-ID') || '0';
+    const fee = userTx ? Math.round(userTx.amount * 0.05).toLocaleString('id-ID') : '0';
+    return template
+      .replace('{nama}', user.name)
+      .replace('{kelas}', kelas)
+      .replace('{jumlah}', jumlah)
+      .replace('{fee}', fee);
   }
 
   function getActiveTemplate(): string {
@@ -300,7 +331,7 @@ export default function AdminDashboard({
       if (!sentIds.has(user.id)) {
         onSendNotification({
           userId: user.id,
-          type: templateKey === 'payment' ? 'payment' : templateKey === 'material' ? 'material' : 'announcement',
+          type: templateKey === 'payment' || templateKey === 'billing' ? 'payment' : templateKey === 'material' ? 'material' : 'announcement',
           title: TEMPLATE_LABELS[templateKey],
           body: resolveMessage(template, user),
           read: false,
@@ -349,6 +380,7 @@ export default function AdminDashboard({
               { id: 'users', label: 'Manajemen User', icon: Users },
               { id: 'notif', label: 'Notifikasi', icon: Bell },
               { id: 'laporan', label: 'Laporan', icon: BarChart2 },
+              { id: 'pengaturan', label: 'Pengaturan Platform', icon: Settings },
             ] as { id: AdminTab; label: string; icon: React.ComponentType<{ className?: string }> }[]
           ).map(({ id, label, icon: Icon }) => (
             <button
@@ -377,41 +409,47 @@ export default function AdminDashboard({
               <p className="text-slate-400 text-sm mt-1">Ringkasan performa keseluruhan platform LMS Farmasi.</p>
             </div>
 
-            {/* 6 KPI Cards 2x3 */}
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Total Revenue */}
+            {/* 8 KPI Cards 4x2 */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Total Alumni */}
               <div className="bg-[#16181D] border border-emerald-500/20 rounded-2xl p-5 shadow-lg flex items-center gap-4">
                 <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-400 shrink-0">
                   <TrendingUp className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Total Revenue</div>
-                  <div className="text-lg font-black text-emerald-400 mt-0.5 truncate">{formatRupiah(totalRevenue)}</div>
-                  <div className="text-[10px] text-slate-500">Transaksi sukses</div>
+                  <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Total Alumni</div>
+                  <div className="text-lg font-black text-emerald-400 mt-0.5 truncate">
+                    {PLATFORM_STATS_FALLBACK.totalAlumni.toLocaleString('id-ID')}
+                  </div>
+                  <div className="text-[10px] text-slate-500">Seluruh angkatan</div>
                 </div>
               </div>
 
-              {/* Total User */}
+              {/* Total Revenue (historical) */}
               <div className="bg-[#16181D] border border-white/10 rounded-2xl p-5 shadow-lg flex items-center gap-4">
                 <div className="p-3 bg-white/5 rounded-xl text-slate-300 shrink-0">
-                  <Users className="h-5 w-5" />
+                  <CreditCard className="h-5 w-5" />
                 </div>
-                <div>
-                  <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Total User</div>
-                  <div className="text-lg font-black text-white mt-0.5">{students.length}</div>
-                  <div className="text-[10px] text-slate-500">Terdaftar di sistem</div>
+                <div className="min-w-0">
+                  <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Total Revenue</div>
+                  <div className="text-lg font-black text-white mt-0.5 truncate">
+                    {formatRupiah(PLATFORM_STATS_FALLBACK.totalRevenue)}
+                  </div>
+                  <div className="text-[10px] text-slate-500">Historical</div>
                 </div>
               </div>
 
-              {/* User Aktif */}
+              {/* User Aktif Gen 6 */}
               <div className="bg-[#16181D] border border-white/10 rounded-2xl p-5 shadow-lg flex items-center gap-4">
                 <div className="p-3 bg-white/5 rounded-xl text-slate-300 shrink-0">
                   <UserCheck className="h-5 w-5" />
                 </div>
                 <div>
-                  <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">User Aktif</div>
-                  <div className="text-lg font-black text-white mt-0.5">{activeStudentsCount}</div>
-                  <div className="text-[10px] text-slate-500">Status aktif</div>
+                  <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">User Aktif (Gen 6)</div>
+                  <div className="text-lg font-black text-white mt-0.5">
+                    {PLATFORM_STATS_FALLBACK.activeStudents}
+                  </div>
+                  <div className="text-[10px] text-slate-500">Angkatan berjalan</div>
                 </div>
               </div>
 
@@ -446,8 +484,34 @@ export default function AdminDashboard({
                 </div>
                 <div>
                   <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Tingkat Kelulusan</div>
-                  <div className="text-lg font-black text-white mt-0.5">{passRate}%</div>
+                  <div className="text-lg font-black text-white mt-0.5">{PLATFORM_STATS_FALLBACK.avgPassRate}%</div>
                   <div className="text-[10px] text-slate-500">Rata-rata kuis</div>
+                </div>
+              </div>
+
+              {/* Platform Fee (5%) */}
+              <div className="bg-[#16181D] border border-amber-500/20 rounded-2xl p-5 shadow-lg flex items-center gap-4">
+                <div className="p-3 bg-amber-500/10 rounded-xl text-amber-400 shrink-0">
+                  <TrendingUp className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Pendapatan Platform</div>
+                  <div className="text-lg font-black text-amber-400 mt-0.5 truncate">
+                    {formatRupiah(Math.round(PLATFORM_STATS_FALLBACK.totalRevenue * 0.05))}
+                  </div>
+                  <div className="text-[10px] text-slate-500">Platform fee 5%</div>
+                </div>
+              </div>
+
+              {/* Maintenance Fee */}
+              <div className="bg-[#16181D] border border-slate-500/20 rounded-2xl p-5 shadow-lg flex items-center gap-4">
+                <div className="p-3 bg-slate-500/10 rounded-xl text-slate-400 shrink-0">
+                  <Settings className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Biaya Maintenance</div>
+                  <div className="text-lg font-black text-slate-300 mt-0.5">Rp 500.000</div>
+                  <div className="text-[10px] text-slate-500">Per bulan</div>
                 </div>
               </div>
             </div>
@@ -527,15 +591,20 @@ export default function AdminDashboard({
                 <p className="text-slate-400 text-sm mt-1">Kelola dan konfirmasi pembayaran masuk dari seluruh peserta.</p>
               </div>
               <button
-                onClick={() => window.alert('Fitur export CSV akan segera hadir')}
+                onClick={() => window.alert('[MOCK] Export CSV: Fitur akan aktif setelah integrasi Supabase. Data akan mencakup semua transaksi dengan breakdown platform fee.')}
                 className="px-4 py-2 bg-white/10 hover:bg-white/15 text-white rounded-xl font-bold text-xs transition cursor-pointer border border-white/10 shrink-0"
               >
                 Export CSV
               </button>
             </div>
 
+            {/* Platform fee note */}
+            <div className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg">
+              Platform fee 5% dipotong otomatis · Maintenance Rp 500.000/bulan
+            </div>
+
             {/* Summary Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-[#16181D] border border-white/10 rounded-xl p-4">
                 <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total Revenue</div>
                 <div className="text-lg font-black text-emerald-400 mt-1">{formatRupiah(totalRevenue)}</div>
@@ -544,9 +613,13 @@ export default function AdminDashboard({
                 <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Bulan Ini</div>
                 <div className="text-lg font-black text-white mt-1">{formatRupiah(thisMonthRevenue)}</div>
               </div>
-              <div className="bg-[#16181D] border border-yellow-500/20 rounded-xl p-4">
-                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Pending</div>
-                <div className="text-lg font-black text-yellow-400 mt-1">{formatRupiah(pendingAmount)}</div>
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
+                <div className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Total Platform Fee</div>
+                <div className="text-lg font-black text-amber-400 mt-1">{formatRupiah(Math.round(totalPlatformFee))}</div>
+              </div>
+              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
+                <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Net ke Apoteker Rahmato</div>
+                <div className="text-lg font-black text-white mt-1">{formatRupiah(Math.round(totalNetKlien))}</div>
               </div>
             </div>
 
@@ -599,6 +672,8 @@ export default function AdminDashboard({
                         <th className="p-4">Metode</th>
                         <th className="p-4">Tanggal</th>
                         <th className="p-4">Jumlah</th>
+                        <th className="p-4">Platform Fee (5%)</th>
+                        <th className="p-4">Net ke Klien</th>
                         <th className="p-4">Status</th>
                         <th className="p-4">Aksi</th>
                       </tr>
@@ -619,6 +694,12 @@ export default function AdminDashboard({
                           <td className="p-4 text-slate-300">{tx.paymentMethod}</td>
                           <td className="p-4 text-slate-400">{formatDate(tx.createdAt)}</td>
                           <td className="p-4 font-bold text-white">{formatRupiah(tx.amount)}</td>
+                          <td className="p-4 font-bold text-amber-400">
+                            {formatRupiah(Math.round(tx.amount * 0.05))}
+                          </td>
+                          <td className="p-4 font-bold text-emerald-400">
+                            {formatRupiah(Math.round(tx.amount * 0.95))}
+                          </td>
                           <td className="p-4">
                             <StatusBadge status={tx.status} />
                           </td>
@@ -662,7 +743,13 @@ export default function AdminDashboard({
               <p className="text-slate-400 text-sm mt-1">Kelola akun peserta, enrollment kelas, dan status aktif.</p>
             </div>
 
-            {/* Search + Filter */}
+            {/* Alumni migration info bar */}
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-2.5 text-xs text-blue-300 flex items-center gap-2">
+              <Info className="h-4 w-4 shrink-0" />
+              35.247 total alumni tercatat di sistem lama · Migrasi data akan dilakukan setelah backend Supabase aktif
+            </div>
+
+            {/* Search + Filter + Import CSV */}
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative">
                 <Search className="h-4 w-4 text-slate-400 absolute left-2.5 top-2.5" />
@@ -684,6 +771,13 @@ export default function AdminDashboard({
                   <option key={p} value={p} className="bg-[#16181D]">{p}</option>
                 ))}
               </select>
+              <button
+                onClick={() => alert('[MOCK] Fitur import CSV akan tersedia setelah integrasi backend Supabase. Format: nama,email,profesi,kelas')}
+                className="flex items-center gap-2 px-4 py-2 border border-white/10 text-slate-300 hover:border-emerald-500 hover:text-emerald-400 rounded-lg text-sm font-semibold transition cursor-pointer"
+              >
+                <Upload className="h-4 w-4" />
+                Import CSV
+              </button>
             </div>
 
             {/* User Table */}
@@ -1144,11 +1238,27 @@ export default function AdminDashboard({
                   ))}
                 </div>
                 <button
-                  onClick={() => window.alert('Fitur export CSV akan segera hadir')}
+                  onClick={() => window.alert('[MOCK] Export CSV: Fitur akan aktif setelah integrasi Supabase. Data akan mencakup semua transaksi dengan breakdown platform fee.')}
                   className="px-3 py-2 bg-white/10 hover:bg-white/15 text-white rounded-xl font-bold text-xs transition cursor-pointer border border-white/10"
                 >
-                  Export
+                  Export CSV
                 </button>
+              </div>
+            </div>
+
+            {/* Revenue Sharing Breakdown */}
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="bg-[#16181D] border border-white/10 rounded-xl p-4">
+                <p className="text-xs text-slate-400 uppercase tracking-wider">Total Revenue</p>
+                <p className="text-xl font-black text-white mt-1">Rp {totalRevenue.toLocaleString('id-ID')}</p>
+              </div>
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
+                <p className="text-xs text-amber-400 uppercase tracking-wider">Platform Fee (5%)</p>
+                <p className="text-xl font-black text-amber-400 mt-1">Rp {Math.round(totalRevenue * 0.05).toLocaleString('id-ID')}</p>
+              </div>
+              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
+                <p className="text-xs text-emerald-400 uppercase tracking-wider">Net Apoteker Rahmato</p>
+                <p className="text-xl font-black text-emerald-400 mt-1">Rp {Math.round(totalRevenue * 0.95).toLocaleString('id-ID')}</p>
               </div>
             </div>
 
@@ -1270,6 +1380,140 @@ export default function AdminDashboard({
                   })}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ==================== TAB 6: PENGATURAN ==================== */}
+        {adminTab === 'pengaturan' && (
+          <div className="space-y-8">
+            <div>
+              <h1 className="text-2xl font-black text-white">Pengaturan Platform</h1>
+              <p className="text-slate-400 text-sm mt-1">Konfigurasi revenue share, payment gateway, dan migrasi data.</p>
+            </div>
+
+            <div className="space-y-4">
+
+              {/* Revenue Share */}
+              <div className="bg-[#16181D] border border-white/10 rounded-2xl p-6 shadow-lg space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-white text-sm">Revenue Share</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">Fee platform per transaksi sukses</p>
+                  </div>
+                  <span className="text-[10px] text-slate-500 bg-white/5 border border-white/10 px-2 py-1 rounded-lg">
+                    Dikonfigurasi oleh platform
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="text"
+                    value="5% per transaksi"
+                    disabled
+                    className="text-sm px-4 py-2.5 bg-[#0F1115] border border-white/10 text-slate-400 rounded-xl w-48 cursor-not-allowed"
+                  />
+                  <span className="text-xs text-amber-400 font-semibold">
+                    = Rp {Math.round(PLATFORM_STATS_FALLBACK.totalRevenue * 0.05).toLocaleString('id-ID')} dari total historical
+                  </span>
+                </div>
+              </div>
+
+              {/* Maintenance Fee */}
+              <div className="bg-[#16181D] border border-white/10 rounded-2xl p-6 shadow-lg space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-white text-sm">Maintenance Fee</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">Biaya bulanan hosting & maintenance platform</p>
+                  </div>
+                  <span className="text-[10px] text-slate-500 bg-white/5 border border-white/10 px-2 py-1 rounded-lg">
+                    Dikonfigurasi oleh platform
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  value="Rp 500.000 / bulan"
+                  disabled
+                  className="text-sm px-4 py-2.5 bg-[#0F1115] border border-white/10 text-slate-400 rounded-xl w-48 cursor-not-allowed"
+                />
+              </div>
+
+              {/* Payment Gateway */}
+              <div className="bg-[#16181D] border border-amber-500/20 rounded-2xl p-6 shadow-lg space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-white text-sm">Payment Gateway</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">Midtrans / Xendit akan terhubung setelah integrasi selesai</p>
+                  </div>
+                  <span className="px-3 py-1 text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full">
+                    Integrasi Berlangsung (Rafli)
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {[
+                    { label: 'API credentials configured', done: true },
+                    { label: 'Webhook endpoint ready', done: true },
+                    { label: 'Testing sandbox', done: false, inProgress: true },
+                    { label: 'Go live', done: false },
+                  ].map(({ label, done, inProgress }) => (
+                    <div key={label} className="flex items-center gap-2.5 text-xs">
+                      <span className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold ${
+                        done
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                          : inProgress
+                          ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                          : 'bg-white/5 text-slate-500 border border-white/10'
+                      }`}>
+                        {done ? <Check className="h-3 w-3" /> : inProgress ? '⏳' : '○'}
+                      </span>
+                      <span className={done ? 'text-slate-300' : inProgress ? 'text-amber-400' : 'text-slate-500'}>
+                        {label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Platform Info */}
+              <div className="bg-[#16181D] border border-white/10 rounded-2xl p-6 shadow-lg">
+                <h3 className="font-bold text-white text-sm mb-4">Platform Info</h3>
+                <div className="grid grid-cols-3 gap-4 text-xs">
+                  <div>
+                    <p className="text-slate-500 uppercase tracking-wider text-[10px]">Versi App</p>
+                    <p className="text-white font-bold mt-1">v1.0.0</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500 uppercase tracking-wider text-[10px]">Last Deploy</p>
+                    <p className="text-white font-bold mt-1">11 Jul 2026</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500 uppercase tracking-wider text-[10px]">Environment</p>
+                    <p className="text-emerald-400 font-bold mt-1">Production</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Data Migration */}
+              <div className="bg-[#16181D] border border-white/10 rounded-2xl p-6 shadow-lg space-y-4">
+                <div>
+                  <h3 className="font-bold text-white text-sm">Migrasi Data</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    35.247 user dari sistem lama siap diimport ke Supabase
+                  </p>
+                </div>
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-2.5 text-xs text-blue-300 flex items-center gap-2">
+                  <Info className="h-4 w-4 shrink-0" />
+                  Proses migrasi akan memindahkan seluruh data alumni, enrollment, dan riwayat transaksi ke backend baru.
+                </div>
+                <button
+                  disabled
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 text-slate-500 rounded-xl font-bold text-xs cursor-not-allowed opacity-60"
+                >
+                  <Upload className="h-4 w-4" />
+                  Mulai Migrasi
+                  <span className="text-[10px] font-normal ml-1">(Tersedia setelah backend aktif)</span>
+                </button>
+              </div>
+
             </div>
           </div>
         )}

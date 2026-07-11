@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { Play, Pause, Volume2, VolumeX, Sparkles, Award, ExternalLink, Search } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Sparkles, Award, ExternalLink, Search, CheckCircle2 } from 'lucide-react';
 import { Class, Material } from '../types';
 
 interface ClassroomVideoTabProps {
   activeClass: Class;
   materials: Material[];
   onMaterialAccess: (materialId: string) => void;
+  classId?: string;
 }
 
-export default function ClassroomVideoTab({ activeClass, materials, onMaterialAccess }: ClassroomVideoTabProps) {
+export default function ClassroomVideoTab({ activeClass, materials, onMaterialAccess, classId }: ClassroomVideoTabProps) {
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
@@ -20,6 +21,23 @@ export default function ClassroomVideoTab({ activeClass, materials, onMaterialAc
   const [noteSaved, setNoteSaved] = useState<boolean>(false);
 
   const [searchQuery, setSearchQuery] = useState('');
+
+  // [MOCK] Video progress — akan diganti dengan API call ke Supabase
+  const [watchedVideos, setWatchedVideos] = React.useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(`lms_watched_${classId ?? activeClass.id}`);
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  const markWatched = (videoId: string) => {
+    const updated = new Set(watchedVideos);
+    updated.add(videoId);
+    setWatchedVideos(updated);
+    localStorage.setItem(`lms_watched_${classId ?? activeClass.id}`, JSON.stringify([...updated]));
+  };
 
   const videoList = materials.filter(m => m.type === 'video');
   const defaultVideos: { id: string; title: string; description: string; duration: string; unsplashUrl: string; youtubeId?: string }[] = [
@@ -223,18 +241,32 @@ export default function ClassroomVideoTab({ activeClass, materials, onMaterialAc
                 <span>Durasi: <strong className="text-slate-200">{activeVideo.duration}</strong></span>
               </div>
             </div>
-            
-            {activeClass.playlistUrl && (
-              <a
-                href={activeClass.playlistUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 font-bold bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 px-3 py-2 rounded-xl transition shrink-0 cursor-pointer self-start sm:self-center"
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => markWatched(activeVideo.id)}
+                className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer ${
+                  watchedVideos.has(activeVideo.id)
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                    : 'bg-white/5 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 border border-white/10'
+                }`}
               >
-                <span>Buka di YouTube</span>
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            )}
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {watchedVideos.has(activeVideo.id) ? 'Sudah Ditonton' : 'Tandai Selesai'}
+              </button>
+
+              {activeClass.playlistUrl && (
+                <a
+                  href={activeClass.playlistUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 font-bold bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 px-3 py-2 rounded-xl transition shrink-0 cursor-pointer self-start sm:self-center"
+                >
+                  <span>Buka di YouTube</span>
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
+            </div>
           </div>
 
           <p className="text-sm text-slate-300 leading-relaxed pt-2 border-t border-white/5">
@@ -285,6 +317,21 @@ export default function ClassroomVideoTab({ activeClass, materials, onMaterialAc
       <div className="lg:col-span-4 space-y-4">
         <div className="bg-[#16181D] border border-white/10 rounded-2xl p-4 shadow-sm flex flex-col h-full max-h-[600px]">
           <>
+            {/* Progress bar */}
+            {(() => {
+              const progress = fullPlaylist.length > 0 ? Math.round((watchedVideos.size / fullPlaylist.length) * 100) : 0;
+              return (
+                <div className="mb-4 shrink-0">
+                  <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+                    <span>Progress Kelas</span>
+                    <span className="font-bold text-emerald-400">{watchedVideos.size}/{fullPlaylist.length} video · {progress}%</span>
+                  </div>
+                  <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+                  </div>
+                </div>
+              );
+            })()}
             <div className="flex flex-col gap-3 border-b border-white/10 pb-3 mb-3 shrink-0">
                 <h3 className="font-display font-semibold text-sm text-white flex items-center justify-between">
                   <span>Daftar Putar Kelas</span>
@@ -365,6 +412,9 @@ export default function ClassroomVideoTab({ activeClass, materials, onMaterialAc
                           </span>
                         )}
                       </div>
+                      {watchedVideos.has(v.id) && (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                      )}
                     </div>
                   );
                 })
