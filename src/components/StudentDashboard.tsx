@@ -35,10 +35,14 @@ import {
   Calendar,
   MessageCircle,
   Video,
-  FileCheck
+  FileCheck,
+  ShieldCheck,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { Class, Material, User, Transaction, QuizAttempt, ForumPost, Notification, Schedule, DirectMessage } from '../types';
 import { getMaterialsForClass, QUIZ_TEMPLATES } from '../data/coursesData';
+import { createXenditInvoice } from '../lib/api';
 import ClassroomVideoTab from './ClassroomVideoTab';
 import ClassroomFilesTab from './ClassroomFilesTab';
 import ClassroomQuizTab from './ClassroomQuizTab';
@@ -123,10 +127,10 @@ export default function StudentDashboard({
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const [voiceProgressPercent, setVoiceProgressPercent] = useState<Record<string, number>>({});
   
-  // Checkout Modal State
+  // Checkout Modal State (Xendit via Internal Ventera gateway)
   const [checkoutClassId, setCheckoutClassId] = useState<string | null>(null);
-  const [selectedPayment, setSelectedPayment] = useState<string>('Bank Transfer (BCA)');
-  const [checkoutStep, setCheckoutStep] = useState<'form' | 'success'>('form');
+  const [checkoutLoading, setCheckoutLoading] = useState<boolean>(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   // Quiz taking state
   const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({});
@@ -285,25 +289,48 @@ export default function StudentDashboard({
   // Handle purchasing class triggering the checkout modal
   const handleCheckoutInit = (classId: string) => {
     setCheckoutClassId(classId);
-    setCheckoutStep('form');
+    setCheckoutError(null);
+    setCheckoutLoading(false);
   };
 
-  // Perform purchase
-  const handleConfirmPayment = () => {
+  // Mulai pembayaran Xendit: buat invoice lewat gateway, lalu arahkan user ke
+  // halaman pembayaran Xendit. Konfirmasi pembayaran final ditangani server-side
+  // oleh gateway Internal Ventera -> edge function lmsrhmt-payment-confirm.
+  const handleXenditCheckout = async () => {
     if (!checkoutClassId) return;
     const cls = classes.find((c) => c.id === checkoutClassId);
     if (!cls) return;
 
-    onPurchaseSuccess(cls.id, cls.price, selectedPayment);
-    setCheckoutStep('success');
-  };
+    setCheckoutError(null);
+    setCheckoutLoading(true);
+    try {
+      // Simpan konteks agar setelah kembali dari Xendit (redirect success) app
+      // bisa menandai kelas aktif untuk peserta ini.
+      localStorage.setItem(
+        'lms_pending_checkout',
+        JSON.stringify({
+          classId: cls.id,
+          studentId: currentUser.id,
+          studentName: currentUser.name,
+          studentEmail: currentUser.email,
+          amount: cls.price,
+        })
+      );
 
-  const handleCloseCheckoutSuccess = () => {
-    setCheckoutClassId(null);
-    setCheckoutStep('form');
-    setActiveTab('my-classes');
-    if (checkoutClassId) {
-      handleOpenClassroom(checkoutClassId);
+      const { invoice_url } = await createXenditInvoice({
+        classId: cls.id,
+        buyerName: currentUser.name,
+        buyerEmail: currentUser.email,
+        // Redirect balik ke origin saat ini (localhost:3000 saat dev, domain saat prod).
+        redirectBase: window.location.origin,
+      });
+
+      // Arahkan browser ke halaman pembayaran Xendit.
+      window.location.href = invoice_url;
+    } catch (e) {
+      localStorage.removeItem('lms_pending_checkout');
+      setCheckoutError(e instanceof Error ? e.message : 'Gagal memulai pembayaran.');
+      setCheckoutLoading(false);
     }
   };
 
@@ -1209,113 +1236,90 @@ export default function StudentDashboard({
               className="bg-[#16181D] rounded-2xl max-w-md w-full shadow-2xl border border-white/10 overflow-hidden"
             >
               
-              {checkoutStep === 'form' ? (
-                <div>
-                  <div className="p-6 bg-[#0F1115] text-white flex justify-between items-center border-b border-white/10">
-                    <div>
-                      <h3 className="font-extrabold text-lg">Billing & Pendaftaran</h3>
-                      <p className="text-slate-400 text-xs">Simulasi Sistem Pembayaran LMS</p>
-                    </div>
-                    <button
-                      onClick={() => setCheckoutClassId(null)}
-                      className="text-slate-400 hover:text-white text-sm"
-                    >
-                      Batal
-                    </button>
-                  </div>
-
-                  <div className="p-6 space-y-6">
-                    {/* Class being bought */}
-                    {(() => {
-                      const cls = classes.find((c) => c.id === checkoutClassId);
-                      if (!cls) return null;
-                      return (
-                        <div className="p-4 bg-[#0F1115] rounded-xl border border-white/10">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase">{cls.generationName}</span>
-                          <h4 className="font-black text-white text-sm">{cls.name}</h4>
-                          <p className="text-xs text-slate-400 mt-1 line-clamp-1">{cls.description}</p>
-                          <div className="flex justify-between items-center mt-3 pt-3 border-t border-white/10">
-                            <span className="text-xs text-slate-400">Biaya Kelas</span>
-                            <span className="font-black text-emerald-400">Rp {cls.price.toLocaleString('id-ID')}</span>
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Choose simulated payment method */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-300 block">Pilih Metode Pembayaran (Simulasi):</label>
-                      <div className="grid grid-cols-1 gap-2">
-                        {[
-                          'Bank Transfer (BCA)',
-                          'Bank Transfer (Mandiri)',
-                          'E-Wallet (GoPay)',
-                          'E-Wallet (OVO)',
-                        ].map((method) => (
-                          <button
-                            key={method}
-                            type="button"
-                            onClick={() => setSelectedPayment(method)}
-                            className={`p-3 border rounded-lg text-left text-xs transition flex items-center justify-between ${
-                              selectedPayment === method
-                                ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400 font-bold'
-                                : 'border-white/10 text-slate-300 hover:bg-white/5'
-                            }`}
-                          >
-                            <span className="flex items-center gap-2">
-                              <CreditCard className="h-4 w-4 text-slate-400" />
-                              {method}
-                            </span>
-                            {selectedPayment === method && <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="text-xs text-slate-300 bg-emerald-500/5 p-3 rounded-xl border border-emerald-500/20">
-                      <strong>Info Simulasi:</strong> Klik "Konfirmasi Pembayaran" di bawah ini akan menyimulasikan konfirmasi dana langsung. Murid akan otomatis terdaftar dan kelas langsung aktif!
-                    </div>
-
-                    <button
-                      onClick={handleConfirmPayment}
-                      className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl text-sm shadow-md transition flex items-center justify-center gap-1"
-                    >
-                      <span>Selesaikan Pembayaran</span>
-                      <ArrowRight className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-8 text-center space-y-6">
-                  <div className="mx-auto w-16 h-16 bg-emerald-500/10 text-emerald-400 rounded-full flex items-center justify-center">
-                    <CheckCircle2 className="h-10 w-10" />
-                  </div>
+              <div>
+                <div className="p-6 bg-[#0F1115] text-white flex justify-between items-center border-b border-white/10">
                   <div>
-                    <h3 className="text-2xl font-black text-white">Pembayaran Sukses!</h3>
-                    <p className="text-sm text-slate-400 mt-2">
-                      Konfirmasi otomatis berhasil. Anda telah terdaftar secara resmi di kelas baru Anda.
+                    <h3 className="font-extrabold text-lg">Billing & Pendaftaran</h3>
+                    <p className="text-slate-400 text-xs flex items-center gap-1.5">
+                      <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+                      Pembayaran aman via Xendit — Gateway Ventera
                     </p>
                   </div>
+                  <button
+                    onClick={() => setCheckoutClassId(null)}
+                    disabled={checkoutLoading}
+                    className="text-slate-400 hover:text-white text-sm disabled:opacity-40"
+                  >
+                    Batal
+                  </button>
+                </div>
 
-                  <div className="p-4 bg-[#0F1115] rounded-xl border border-white/10 text-left text-xs space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">ID Invoice:</span>
-                      <span className="font-mono font-semibold text-white">TX-{(Math.random() * 1000).toFixed(0)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Metode Bayar:</span>
-                      <span className="font-medium text-slate-200">{selectedPayment}</span>
+                <div className="p-6 space-y-6">
+                  {/* Class being bought */}
+                  {(() => {
+                    const cls = classes.find((c) => c.id === checkoutClassId);
+                    if (!cls) return null;
+                    return (
+                      <div className="p-4 bg-[#0F1115] rounded-xl border border-white/10">
+                        <span className="text-[9px] font-bold text-slate-500 uppercase">{cls.generationName}</span>
+                        <h4 className="font-black text-white text-sm">{cls.name}</h4>
+                        <p className="text-xs text-slate-400 mt-1 line-clamp-1">{cls.description}</p>
+                        <div className="flex justify-between items-center mt-3 pt-3 border-t border-white/10">
+                          <span className="text-xs text-slate-400">Biaya Kelas</span>
+                          <span className="font-black text-emerald-400">Rp {cls.price.toLocaleString('id-ID')}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Metode pembayaran yang tersedia di halaman Xendit */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-300 block">Metode Pembayaran Tersedia:</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {['Virtual Account Bank', 'QRIS', 'E-Wallet (OVO/DANA/GoPay)', 'Kartu Kredit / Retail'].map((method) => (
+                        <div
+                          key={method}
+                          className="p-3 border border-white/10 rounded-lg text-left text-[11px] text-slate-300 flex items-center gap-2"
+                        >
+                          <CreditCard className="h-4 w-4 text-emerald-400 shrink-0" />
+                          <span>{method}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
+                  <div className="text-xs text-slate-300 bg-emerald-500/5 p-3 rounded-xl border border-emerald-500/20">
+                    Anda akan diarahkan ke halaman pembayaran aman <strong>Xendit</strong>. Setelah
+                    pembayaran berhasil, konfirmasi dana diverifikasi otomatis oleh gateway Ventera dan
+                    kelas Anda langsung aktif.
+                  </div>
+
+                  {checkoutError && (
+                    <div className="text-xs text-rose-300 bg-rose-500/10 p-3 rounded-xl border border-rose-500/30 flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <span>{checkoutError}</span>
+                    </div>
+                  )}
+
                   <button
-                    onClick={handleCloseCheckoutSuccess}
-                    className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl text-sm transition"
+                    onClick={handleXenditCheckout}
+                    disabled={checkoutLoading}
+                    className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl text-sm shadow-md transition flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    Buka Kelas Saya & Belajar
+                    {checkoutLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Menyiapkan pembayaran…</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Bayar Sekarang via Xendit</span>
+                        <ArrowRight className="h-4 w-4" />
+                      </>
+                    )}
                   </button>
                 </div>
-              )}
+              </div>
 
             </motion.div>
           </div>

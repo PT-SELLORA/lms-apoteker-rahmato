@@ -15,3 +15,14 @@ site_url = "http://localhost:5173"
 additional_redirect_urls = ["http://localhost:5173"]
 jwt_expiry = 3600
 enable_signup = true
+
+# =============================================================================
+# Xendit payment functions — dipanggil server-to-server (gateway / Xendit),
+# BUKAN dari browser user yang login, jadi JWT verification harus dimatikan.
+# Keamanan dijaga manual di dalam kode (x-internal-token untuk payment-confirm).
+# =============================================================================
+[functions.lmsrhmt-create-invoice]
+verify_jwt = false
+
+[functions.lmsrhmt-payment-confirm]
+verify_jwt = false
