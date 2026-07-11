@@ -30,9 +30,14 @@ import {
   Mic,
   Trash2,
   Check,
-  Search
+  Search,
+  User2,
+  Calendar,
+  MessageCircle,
+  Video,
+  FileCheck
 } from 'lucide-react';
-import { Class, Material, User, Transaction, QuizAttempt, ForumPost } from '../types';
+import { Class, Material, User, Transaction, QuizAttempt, ForumPost, Notification, Schedule, DirectMessage } from '../types';
 import { getMaterialsForClass, QUIZ_TEMPLATES } from '../data/coursesData';
 import ClassroomVideoTab from './ClassroomVideoTab';
 import ClassroomFilesTab from './ClassroomFilesTab';
@@ -50,6 +55,11 @@ interface StudentDashboardProps {
   onAddForumReply: (postId: string, content: string) => void;
   onQuizSubmit: (classId: string, score: number, passed: boolean) => void;
   onLogOut: () => void;
+  notifications?: Notification[];
+  schedules?: Schedule[];
+  messages?: DirectMessage[];
+  onSendMessage?: (toId: string, content: string) => void;
+  onMarkNotifRead?: (notifId: string) => void;
 }
 
 export default function StudentDashboard({
@@ -63,9 +73,14 @@ export default function StudentDashboard({
   onAddForumReply,
   onQuizSubmit,
   onLogOut,
+  notifications: _notifications,
+  schedules,
+  messages,
+  onSendMessage,
+  onMarkNotifRead: _onMarkNotifRead,
 }: StudentDashboardProps) {
   // Navigation State
-  const [activeTab, setActiveTab] = useState<'my-classes' | 'catalog' | 'transactions' | 'certificates'>('my-classes');
+  const [activeTab, setActiveTab] = useState<'my-classes' | 'catalog' | 'transactions' | 'certificates' | 'profile' | 'schedule' | 'inbox'>('my-classes');
   
   // Classroom viewer state
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
@@ -126,6 +141,9 @@ export default function StudentDashboard({
 
   // Catalog search state
   const [catalogSearchQuery, setCatalogSearchQuery] = useState('');
+
+  // Inbox state
+  const [inboxMessage, setInboxMessage] = useState('');
 
   // Accessed Materials state
   const [accessedMaterials, setAccessedMaterials] = useState<Record<string, string[]>>(() => {
@@ -334,6 +352,24 @@ export default function StudentDashboard({
     setNewReplyContent((prev) => ({ ...prev, [postId]: '' }));
   };
 
+  // Mock data for schedule and inbox
+  const mockSchedules: Schedule[] = [
+    { id: 's1', classId: 'gen6-reg-a', className: 'Reguler A - Generasi 6', type: 'live', scheduledAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), zoomUrl: '#' },
+    { id: 's2', classId: 'gen6-adv-a', className: 'Advance A - Generasi 6', type: 'quiz', scheduledAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString() },
+    { id: 's3', classId: 'gen6-reg-b', className: 'Reguler B - Generasi 6', type: 'deadline', scheduledAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() },
+    { id: 's4', classId: 'gen6-reg-a', className: 'Reguler A - Generasi 6', type: 'live', scheduledAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() },
+  ];
+
+  const mockMessages: DirectMessage[] = [
+    { id: 'm1', fromId: 'mentor-001', toId: currentUser.id, content: 'Halo! Selamat bergabung di Farma Masterclass. Jangan ragu untuk bertanya di forum ya.', createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), read: true },
+    { id: 'm2', fromId: currentUser.id, toId: 'mentor-001', content: 'Terima kasih Apoteker Rahmato! Saya sudah mulai materi pertama.', createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), read: true },
+    { id: 'm3', fromId: 'mentor-001', toId: currentUser.id, content: 'Bagus sekali! Jika ada pertanyaan tentang kalkulasi dosis, langsung tanya di sini atau di forum kelas.', createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(), read: false },
+  ];
+
+  const activeSchedules = (schedules ?? mockSchedules).filter(s => new Date(s.scheduledAt) > new Date()).sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+  const pastSchedules = (schedules ?? mockSchedules).filter(s => new Date(s.scheduledAt) <= new Date());
+  const activeMessages = messages ?? mockMessages;
+
   return (
     <div className="bg-[#0F1115] text-slate-200 min-h-screen font-sans">
       {/* Tab Navigation */}
@@ -404,6 +440,42 @@ export default function StudentDashboard({
           >
             <Award className="h-4 w-4" />
             <span>Sertifikat</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('profile'); setSelectedClassId(null); }}
+            className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold transition shrink-0 ${
+              activeTab === 'profile'
+                ? 'bg-emerald-500 text-black shadow-md shadow-emerald-500/10 font-bold'
+                : 'text-slate-400 hover:bg-white/5'
+            }`}
+          >
+            <User2 className="h-4 w-4" />
+            <span>Profil Saya</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('schedule'); setSelectedClassId(null); }}
+            className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold transition shrink-0 ${
+              activeTab === 'schedule'
+                ? 'bg-emerald-500 text-black shadow-md shadow-emerald-500/10 font-bold'
+                : 'text-slate-400 hover:bg-white/5'
+            }`}
+          >
+            <Calendar className="h-4 w-4" />
+            <span>Jadwal</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('inbox'); setSelectedClassId(null); }}
+            className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold transition shrink-0 ${
+              activeTab === 'inbox'
+                ? 'bg-emerald-500 text-black shadow-md shadow-emerald-500/10 font-bold'
+                : 'text-slate-400 hover:bg-white/5'
+            }`}
+          >
+            <MessageCircle className="h-4 w-4" />
+            <span>Pesan</span>
           </button>
 
           <button
@@ -926,6 +998,201 @@ export default function StudentDashboard({
                   ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* VIEW 6: PROFILE */}
+        {activeTab === 'profile' && !selectedClassId && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-6 p-6 bg-[#16181D] border border-white/10 rounded-2xl">
+              <div className="relative">
+                <img src={currentUser.avatar} className="w-20 h-20 rounded-full object-cover ring-2 ring-emerald-500" />
+                <button className="absolute bottom-0 right-0 bg-emerald-500 text-black rounded-full p-1 cursor-pointer">
+                  <User2 className="h-3 w-3" />
+                </button>
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-white">{currentUser.name}</h2>
+                <p className="text-emerald-400 text-sm">{currentUser.profession}</p>
+                <p className="text-slate-500 text-xs mt-1">{currentUser.email}</p>
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-[#16181D] border border-white/10 rounded-2xl p-4 text-center">
+                <div className="text-2xl font-black text-emerald-400">{currentUser.enrolledClasses.length}</div>
+                <div className="text-xs text-slate-400 mt-1">Kelas Aktif</div>
+              </div>
+              <div className="bg-[#16181D] border border-white/10 rounded-2xl p-4 text-center">
+                <div className="text-2xl font-black text-white">{currentUser.completedClasses.length}</div>
+                <div className="text-xs text-slate-400 mt-1">Kelas Selesai</div>
+              </div>
+              <div className="bg-[#16181D] border border-white/10 rounded-2xl p-4 text-center">
+                <div className="text-2xl font-black text-amber-400">{currentUser.completedClasses.length}</div>
+                <div className="text-xs text-slate-400 mt-1">Sertifikat</div>
+              </div>
+            </div>
+
+            {/* Edit Form */}
+            <div className="bg-[#16181D] border border-white/10 rounded-2xl p-6 space-y-4">
+              <h3 className="font-bold text-white">Edit Profil</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-slate-400 uppercase tracking-wider block mb-2">Nama Lengkap</label>
+                  <input defaultValue={currentUser.name} className="w-full bg-[#0F1115] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 uppercase tracking-wider block mb-2">Email</label>
+                  <input defaultValue={currentUser.email} disabled className="w-full bg-[#111] border border-white/5 rounded-lg px-3 py-2 text-slate-500 text-sm cursor-not-allowed" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 uppercase tracking-wider block mb-2">Profesi</label>
+                  <select defaultValue={currentUser.profession} className="w-full bg-[#0F1115] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500">
+                    {['Apoteker', 'Dokter', 'Mahasiswa', 'Perawat', 'Bidan', 'Lainnya'].map(p => <option key={p}>{p}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 uppercase tracking-wider block mb-2">No. STR / SIPA</label>
+                  <input placeholder="Masukkan nomor STR/SIPA Anda" className="w-full bg-[#0F1115] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500" />
+                </div>
+              </div>
+              <button className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-lg transition text-sm cursor-pointer">
+                Simpan Perubahan
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* VIEW 7: SCHEDULE */}
+        {activeTab === 'schedule' && !selectedClassId && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-black text-white">Jadwal Mendatang</h2>
+
+            {activeSchedules.length === 0 && (
+              <div className="text-center py-16 text-slate-500">Tidak ada jadwal mendatang</div>
+            )}
+
+            <div className="space-y-3">
+              {activeSchedules.map(s => {
+                const date = new Date(s.scheduledAt);
+                const typeConfig = {
+                  live: { label: 'Live Session', color: 'bg-red-500', icon: Video },
+                  quiz: { label: 'Ujian', color: 'bg-amber-500', icon: FileCheck },
+                  deadline: { label: 'Deadline', color: 'bg-blue-500', icon: Clock },
+                }[s.type];
+                const Icon = typeConfig.icon;
+                return (
+                  <div key={s.id} className="bg-[#16181D] border border-white/10 rounded-2xl p-5 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className={`p-3 rounded-xl ${typeConfig.color}/20 text-white`}>
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-white text-sm">{s.className}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })} · {date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${typeConfig.color} text-white`}>{typeConfig.label}</span>
+                      {s.type === 'live' && (
+                        <a href={s.zoomUrl ?? '#'} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold rounded-lg transition">Bergabung</a>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {pastSchedules.length > 0 && (
+              <div>
+                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Sudah Berlalu</h3>
+                <div className="space-y-2">
+                  {pastSchedules.map(s => (
+                    <div key={s.id} className="bg-[#111] border border-white/5 rounded-xl p-4 flex items-center justify-between opacity-50">
+                      <p className="text-sm text-slate-400">{s.className}</p>
+                      <span className="text-xs text-slate-500">{new Date(s.scheduledAt).toLocaleDateString('id-ID')}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* VIEW 8: INBOX */}
+        {activeTab === 'inbox' && !selectedClassId && (
+          <div className="bg-[#16181D] border border-white/10 rounded-2xl overflow-hidden" style={{ height: '600px' }}>
+            <div className="flex h-full">
+              {/* Sidebar */}
+              <div className="w-64 border-r border-white/10 flex flex-col shrink-0">
+                <div className="p-4 border-b border-white/10">
+                  <h3 className="font-bold text-white text-sm">Pesan</h3>
+                </div>
+                <div className="p-3">
+                  <div className="flex items-center gap-3 p-3 bg-emerald-500/10 rounded-xl cursor-pointer">
+                    <img src="https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=150&auto=format&fit=crop&q=60" className="w-10 h-10 rounded-full object-cover ring-2 ring-emerald-500" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-white truncate">Apoteker Rahmato</p>
+                      <p className="text-xs text-slate-400 truncate">Mentor Farma Masterclass</p>
+                    </div>
+                    {activeMessages.filter(m => !m.read && m.fromId === 'mentor-001').length > 0 && (
+                      <span className="bg-emerald-500 text-black text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">
+                        {activeMessages.filter(m => !m.read && m.fromId === 'mentor-001').length}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Chat area */}
+              <div className="flex-1 flex flex-col">
+                {/* Header */}
+                <div className="p-4 border-b border-white/10 flex items-center gap-3">
+                  <img src="https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=150&auto=format&fit=crop&q=60" className="w-8 h-8 rounded-full object-cover" />
+                  <div>
+                    <p className="text-sm font-bold text-white">Apoteker Rahmato</p>
+                    <p className="text-xs text-emerald-400">● Online</p>
+                  </div>
+                </div>
+
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {activeMessages.map(msg => {
+                    const isMe = msg.fromId === currentUser.id;
+                    return (
+                      <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${isMe ? 'bg-emerald-500 text-black' : 'bg-[#0F1115] border border-white/10 text-slate-200'}`}>
+                          <p>{msg.content}</p>
+                          <p className={`text-[10px] mt-1 ${isMe ? 'text-black/60' : 'text-slate-500'}`}>
+                            {new Date(msg.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Input */}
+                <div className="p-4 border-t border-white/10 flex gap-2">
+                  <input
+                    value={inboxMessage}
+                    onChange={e => setInboxMessage(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && inboxMessage.trim()) { onSendMessage?.('mentor-001', inboxMessage); setInboxMessage(''); } }}
+                    placeholder="Ketik pesan..."
+                    className="flex-1 bg-[#0F1115] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
+                  />
+                  <button
+                    onClick={() => { if (inboxMessage.trim()) { onSendMessage?.('mentor-001', inboxMessage); setInboxMessage(''); } }}
+                    className="p-2.5 bg-emerald-500 hover:bg-emerald-400 text-black rounded-xl transition cursor-pointer"
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

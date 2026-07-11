@@ -2,14 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { getOrInitState, saveState, MENTOR_RAHMATO, GENERATIONS } from './data/coursesData';
 import { loadClasses } from './lib/api';
-import { Class, User, Transaction, QuizAttempt, ForumPost, Material } from './types';
+import { Class, User, Transaction, QuizAttempt, ForumPost, Material, Notification, DirectMessage } from './types';
 import LandingPage from './components/LandingPage';
 import StudentDashboard from './components/StudentDashboard';
 import MentorDashboard from './components/MentorDashboard';
+import AdminDashboard from './components/AdminDashboard';
 import SyringeCursor from './components/SyringeCursor';
 import Navbar from './components/Navbar';
 import { useAuth } from './contexts/AuthContext';
 import type { SSOUser } from './contexts/AuthContext';
+
+const MOCK_NOTIFICATIONS: Notification[] = [
+  { id: 'n1', userId: 'all', type: 'payment', title: 'Pembayaran Dikonfirmasi', body: 'Pembayaran kelas Reguler A - Generasi 6 telah dikonfirmasi. Selamat belajar!', read: false, createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString() },
+  { id: 'n2', userId: 'all', type: 'material', title: 'Materi Baru Tersedia', body: 'Materi baru "Farmakoterapi Lanjut: Monitoring ICU" telah diunggah di kelas Advance A.', read: false, createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString() },
+  { id: 'n3', userId: 'all', type: 'forum', title: 'Mentor Membalas Forum Anda', body: 'Apoteker Rahmato membalas pertanyaan Anda di forum kelas Reguler B.', read: false, createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString() },
+  { id: 'n4', userId: 'all', type: 'announcement', title: 'Pengumuman Kelas', body: 'Jadwal Live Session Generasi 6 telah diperbarui. Cek tab Jadwal di dashboard.', read: true, createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() },
+];
+
+const MOCK_MESSAGES: DirectMessage[] = [
+  { id: 'm1', fromId: 'mentor-001', toId: 'current', content: 'Halo! Selamat bergabung di Farma Masterclass. Jangan ragu untuk bertanya di forum ya.', createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), read: true },
+  { id: 'm2', fromId: 'current', toId: 'mentor-001', content: 'Terima kasih Apoteker Rahmato! Saya sudah mulai materi pertama.', createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), read: true },
+  { id: 'm3', fromId: 'mentor-001', toId: 'current', content: 'Bagus sekali! Jika ada pertanyaan tentang kalkulasi dosis, langsung tanya di sini atau di forum kelas.', createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(), read: false },
+];
 
 // Guard component — redirects to SSO login if not authenticated
 function RequireAuth({ children, requiredRealm }: { children: React.ReactNode; requiredRealm?: string }) {
@@ -48,6 +62,10 @@ export default function App() {
 
   // Custom materials published in real-time by Apoteker Rahmato
   const [customMaterials, setCustomMaterials] = useState<Material[]>([]);
+
+  // Notifications & messages
+  const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
+  const [messages, setMessages] = useState<DirectMessage[]>(MOCK_MESSAGES);
 
   // Ventera SSO session (null = not logged in, loading = checking)
   const { user: ssoUser, loading: ssoLoading } = useAuth();
@@ -273,7 +291,57 @@ export default function App() {
     triggerSaveState(classes, students, updatedForum, transactions, attempts);
   };
 
-  // 6. SUBMIT QUIZ EVALUATION
+  // 6. ADMIN: Confirm/reject payment
+  const handleConfirmPayment = (txId: string, action: 'success' | 'failed') => {
+    const updated = transactions.map(t => t.id === txId ? { ...t, status: action } : t);
+    setTransactions(updated);
+    triggerSaveState(classes, students, forumPosts, updated, attempts);
+  };
+
+  // 7. ADMIN: Toggle user active state
+  const handleToggleUserActive = (userId: string) => {
+    const updated = students.map(s => s.id === userId ? { ...s, isActive: s.isActive === false ? true : false } : s);
+    setStudents(updated);
+    triggerSaveState(classes, updated, forumPosts, transactions, attempts);
+  };
+
+  // 8. ADMIN: Send notification (store in state)
+  const handleSendNotification = (notif: Omit<Notification, 'id' | 'createdAt'>) => {
+    const newNotif: Notification = { ...notif, id: `n-${Date.now()}`, createdAt: new Date().toISOString() };
+    setNotifications(prev => [newNotif, ...prev]);
+  };
+
+  // 9. ADMIN: Add enrollment
+  const handleAddEnrollment = (userId: string, classId: string) => {
+    const updated = students.map(s => s.id === userId && !s.enrolledClasses.includes(classId)
+      ? { ...s, enrolledClasses: [...s.enrolledClasses, classId] } : s);
+    setStudents(updated);
+    triggerSaveState(classes, updated, forumPosts, transactions, attempts);
+  };
+
+  // 10. ADMIN: Remove enrollment
+  const handleRemoveEnrollment = (userId: string, classId: string) => {
+    const updated = students.map(s => s.id === userId
+      ? { ...s, enrolledClasses: s.enrolledClasses.filter(id => id !== classId) } : s);
+    setStudents(updated);
+    triggerSaveState(classes, updated, forumPosts, transactions, attempts);
+  };
+
+  // 11. STUDENT: Send direct message
+  const handleSendMessage = (toId: string, content: string) => {
+    const newMsg: DirectMessage = {
+      id: `msg-${Date.now()}`, fromId: ssoStudent?.id ?? 'current',
+      toId, content, createdAt: new Date().toISOString(), read: false,
+    };
+    setMessages(prev => [...prev, newMsg]);
+  };
+
+  // 12. Mark notification read
+  const handleMarkNotifRead = (notifId: string) => {
+    setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, read: true } : n));
+  };
+
+  // 13. SUBMIT QUIZ EVALUATION
   const handleQuizSubmit = (classId: string, score: number, passed: boolean) => {
     if (!ssoStudent) return;
     const activeStudent = ssoStudent;
@@ -308,7 +376,7 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col font-sans select-none antialiased bg-[#0F1115] text-[#F3F4F6]">
       <SyringeCursor />
-      <Navbar />
+      <Navbar notifications={notifications} onMarkNotifRead={handleMarkNotifRead} />
 
       <Routes>
         <Route path="/" element={
@@ -333,6 +401,10 @@ export default function App() {
               onAddForumReply={handleAddForumReply}
               onQuizSubmit={handleQuizSubmit}
               onLogOut={() => navigate('/')}
+              notifications={notifications}
+              messages={messages}
+              onSendMessage={handleSendMessage}
+              onMarkNotifRead={handleMarkNotifRead}
             />
           </RequireAuth>
         } />
@@ -349,6 +421,23 @@ export default function App() {
               onAddStudent={handleAddStudent}
               onAddForumReply={handleAddForumReply}
               onLogOut={() => navigate('/')}
+            />
+          </RequireAuth>
+        } />
+
+        <Route path="/admin" element={
+          <RequireAuth requiredRealm="mentor">
+            <AdminDashboard
+              classes={classes}
+              students={students}
+              transactions={transactions}
+              attempts={attempts}
+              notifications={notifications}
+              onConfirmPayment={handleConfirmPayment}
+              onToggleUserActive={handleToggleUserActive}
+              onSendNotification={handleSendNotification}
+              onAddEnrollment={handleAddEnrollment}
+              onRemoveEnrollment={handleRemoveEnrollment}
             />
           </RequireAuth>
         } />

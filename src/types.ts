@@ -7,6 +7,7 @@ export interface User {
   profession: 'Apoteker' | 'Dokter' | 'Mahasiswa' | 'Perawat' | 'Bidan' | 'Lainnya';
   enrolledClasses: string[]; // List of class IDs (e.g. "gen6-reg-a")
   completedClasses: string[]; // List of class IDs
+  isActive?: boolean;
 }
 
 export interface Generation {
@@ -104,4 +105,32 @@ export interface Transaction {
   status: 'pending' | 'success' | 'failed';
   paymentMethod: string;
   createdAt: string;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: 'payment' | 'material' | 'forum' | 'announcement';
+  title: string;
+  body: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface Schedule {
+  id: string;
+  classId: string;
+  className: string;
+  type: 'live' | 'deadline' | 'quiz';
+  scheduledAt: string;
+  zoomUrl?: string;
+}
+
+export interface DirectMessage {
+  id: string;
+  fromId: string;
+  toId: string;
+  content: string;
+  createdAt: string;
+  read: boolean;
 }
