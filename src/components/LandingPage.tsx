@@ -192,7 +192,8 @@ export default function LandingPage({
       </div>
 
       {/* About Section (Swiss Style) */}
-      <motion.div 
+      <motion.div
+        id="tentang"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, margin: "-100px" }}
@@ -271,7 +272,8 @@ export default function LandingPage({
       </motion.div>
 
       {/* Main Content Info */}
-      <motion.div 
+      <motion.div
+        id="program"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, margin: "-100px" }}
@@ -421,7 +423,7 @@ export default function LandingPage({
       </motion.div>
       
       {/* Footer */}
-      <footer className="bg-[#0a0a0a] text-slate-500 py-16 border-t border-white/20">
+      <footer id="kontak" className="bg-[#0a0a0a] text-slate-500 py-16 border-t border-white/20">
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
           <div className="space-y-6">
             <div className="flex items-center gap-3">
