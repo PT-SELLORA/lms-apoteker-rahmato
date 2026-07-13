@@ -28,11 +28,14 @@ const MOCK_MESSAGES: DirectMessage[] = [
 ];
 
 // Guard component — redirects to SSO login if not authenticated
-function RequireAuth({ children, requiredRealm }: { children: React.ReactNode; requiredRealm?: string }) {
+function RequireAuth({ children, requiredRealm }: { children: React.ReactNode; requiredRealm?: string | string[] }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen bg-[#0F1115]" />;
   if (!user) { window.location.href = '/auth/login'; return null; }
-  if (requiredRealm && user.realm !== requiredRealm) return <Navigate to="/kelas" replace />;
+  if (requiredRealm) {
+    const allowed = Array.isArray(requiredRealm) ? requiredRealm : [requiredRealm];
+    if (!user.realm || !allowed.includes(user.realm)) return <Navigate to="/kelas" replace />;
+  }
   return <>{children}</>;
 }
 
@@ -356,10 +359,12 @@ export default function App() {
 
   // 5. ADD DISCUSSION FORUM REPLY (Interactive comments from student or mentor)
   const handleAddForumReply = (postId: string, content: string) => {
-    // On /mentor route ssoUser has realm=mentor, so use MENTOR_RAHMATO identity;
-    // otherwise use the SSO student.
+    // Di route /mentor, ssoUser ber-realm mentor/admin -> pakai identitas MENTOR_RAHMATO;
+    // selain itu pakai SSO student.
     const activeUser =
-      ssoUser?.realm === 'mentor' ? MENTOR_RAHMATO : (ssoStudent ?? MENTOR_RAHMATO);
+      ssoUser?.realm === 'mentor' || ssoUser?.realm === 'admin'
+        ? MENTOR_RAHMATO
+        : (ssoStudent ?? MENTOR_RAHMATO);
 
     const updatedForum = forumPosts.map((post) => {
       if (post.id === postId) {
@@ -539,7 +544,7 @@ export default function App() {
         } />
 
         <Route path="/mentor" element={
-          <RequireAuth requiredRealm="mentor">
+          <RequireAuth requiredRealm={['mentor', 'admin']}>
             <MentorDashboard
               classes={classes}
               students={students}
@@ -555,7 +560,7 @@ export default function App() {
         } />
 
         <Route path="/admin" element={
-          <RequireAuth requiredRealm="mentor">
+          <RequireAuth requiredRealm="admin">
             <AdminDashboard
               classes={classes}
               students={students}

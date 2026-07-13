@@ -507,13 +507,6 @@ export default function StudentDashboard({
             <span>Pesan</span>
             <span className="text-[9px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1 py-0.5 rounded font-bold leading-none">BETA</span>
           </button>
-
-          <button
-            onClick={onLogOut}
-            className="text-xs px-3 py-1.5 border border-white/10 hover:bg-white/5 text-slate-400 rounded-lg transition ml-auto shrink-0"
-          >
-            Log Out
-          </button>
         </div>
       </div>
 
