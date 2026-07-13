@@ -170,13 +170,6 @@ export default function MentorDashboard({
               </button>
             );
           })}
-
-          <button
-            onClick={onLogOut}
-            className="text-xs px-3 py-1.5 border border-white/10 hover:bg-white/5 text-slate-300 rounded-lg transition ml-auto shrink-0 cursor-pointer"
-          >
-            Keluar Panel
-          </button>
         </div>
       </div>
 
