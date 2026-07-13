@@ -16,6 +16,12 @@ import {
   consumeTransaction,
   type SessionData,
 } from '../../api/lib/session.server';
+import {
+  resolveRealm,
+  isAdminSession,
+  listRoles,
+  upsertRole,
+} from '../../api/lib/roles.server';
 
 function redirect(res: ServerResponse, url: string, status = 303) {
   res.writeHead(status, { Location: url });
@@ -83,8 +89,50 @@ async function handleMe(req: IncomingMessage, res: ServerResponse) {
     json(res, { authenticated: false }, 401);
     return;
   }
+  // Peran diambil dari DB LMS (user_roles), menimpa realm dari SSO.
+  const realm = await resolveRealm(session);
   const { idToken: _i, accessToken: _a, refreshToken: _r, ...safe } = session;
-  json(res, { authenticated: true, user: safe });
+  json(res, { authenticated: true, user: { ...safe, realm } });
+}
+
+async function handleRoles(req: IncomingMessage, res: ServerResponse) {
+  const session = await getSession(req);
+  if (!session) {
+    json(res, { error: 'Belum login' }, 401);
+    return;
+  }
+  if (!(await isAdminSession(session))) {
+    json(res, { error: 'Hanya admin yang boleh mengelola peran' }, 403);
+    return;
+  }
+
+  if (req.method === 'GET') {
+    json(res, { roles: await listRoles() });
+    return;
+  }
+
+  if (req.method === 'POST') {
+    let parsed: { email?: string; role?: string } = {};
+    try {
+      parsed = JSON.parse((await readBody(req)) || '{}');
+    } catch {
+      parsed = {};
+    }
+    const { email, role } = parsed;
+    if (!email || !role || !['student', 'mentor', 'admin'].includes(role)) {
+      json(res, { error: 'email & role (student|mentor|admin) wajib diisi' }, 400);
+      return;
+    }
+    try {
+      const saved = await upsertRole(email, role as 'student' | 'mentor' | 'admin');
+      json(res, { ok: true, row: saved });
+    } catch (err) {
+      json(res, { error: String((err as Error).message ?? err) }, 500);
+    }
+    return;
+  }
+
+  json(res, { error: 'Method tidak didukung' }, 405);
 }
 
 export function ssoPlugin(): Plugin {
@@ -104,6 +152,8 @@ export function ssoPlugin(): Plugin {
             await handleLogout(req, res);
           } else if (method === 'GET' && url === '/api/auth/me') {
             await handleMe(req, res);
+          } else if (url === '/api/roles' || url.startsWith('/api/roles?')) {
+            await handleRoles(req, res);
           } else {
             next();
           }

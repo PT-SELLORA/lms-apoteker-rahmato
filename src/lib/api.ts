@@ -837,3 +837,44 @@ export function subscribeToMaterials(
 
   return channel;
 }
+
+// ============================================================================
+// USER ROLES — peran (student/mentor/admin) dikelola di DB LMS via BFF /api/roles.
+// Tabel user_roles privat (RLS server-only), jadi client TIDAK query Supabase
+// langsung; semua lewat endpoint server yang dijaga admin.
+// ============================================================================
+
+export type AppRole = 'student' | 'mentor' | 'admin';
+
+export interface UserRoleEntry {
+  email: string;
+  role: AppRole;
+  updated_at: string;
+}
+
+/** Ambil daftar peran (khusus admin — server yang menegakkan). */
+export async function fetchRoles(): Promise<UserRoleEntry[]> {
+  const resp = await fetch('/api/roles', { credentials: 'include' });
+  if (!resp.ok) {
+    const { error } = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
+    throw new Error(error ?? `HTTP ${resp.status}`);
+  }
+  const { roles } = (await resp.json()) as { roles: UserRoleEntry[] };
+  return roles;
+}
+
+/** Set/ubah peran untuk sebuah email (khusus admin). */
+export async function saveRole(email: string, role: AppRole): Promise<UserRoleEntry> {
+  const resp = await fetch('/api/roles', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, role }),
+  });
+  if (!resp.ok) {
+    const { error } = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
+    throw new Error(error ?? `HTTP ${resp.status}`);
+  }
+  const { row } = (await resp.json()) as { row: UserRoleEntry };
+  return row;
+}

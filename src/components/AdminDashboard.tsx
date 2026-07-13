@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   LayoutDashboard,
   CreditCard,
@@ -21,8 +21,11 @@ import {
   Upload,
   Info,
   Settings,
+  ShieldCheck,
+  Loader2,
 } from 'lucide-react';
 import { Class, User, Transaction, QuizAttempt } from '../types';
+import { fetchRoles, saveRole, type UserRoleEntry, type AppRole } from '../lib/api';
 
 // [MOCK] Platform stats — ganti dengan API call ketika backend ready
 const PLATFORM_STATS_FALLBACK = {
@@ -58,7 +61,7 @@ interface AdminDashboardProps {
   onRemoveEnrollment: (userId: string, classId: string) => void;
 }
 
-type AdminTab = 'ringkasan' | 'billing' | 'users' | 'notif' | 'laporan' | 'pengaturan';
+type AdminTab = 'ringkasan' | 'billing' | 'users' | 'notif' | 'laporan' | 'pengaturan' | 'roles';
 type BillingFilter = 'all' | 'pending' | 'success' | 'failed';
 type NotifView = 'send' | 'history';
 type NotifTarget = 'all' | 'pending' | 'pick';
@@ -130,6 +133,58 @@ export default function AdminDashboard({
   onRemoveEnrollment,
 }: AdminDashboardProps) {
   const [adminTab, setAdminTab] = useState<AdminTab>('ringkasan');
+
+  // --- Kelola Peran (user_roles) states ---
+  const [roles, setRoles] = useState<UserRoleEntry[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(false);
+  const [rolesError, setRolesError] = useState<string | null>(null);
+  const [roleEmail, setRoleEmail] = useState('');
+  const [roleValue, setRoleValue] = useState<AppRole>('mentor');
+  const [roleSaving, setRoleSaving] = useState(false);
+  const [roleNotice, setRoleNotice] = useState<string | null>(null);
+
+  const loadRoles = async () => {
+    setRolesLoading(true);
+    setRolesError(null);
+    try {
+      setRoles(await fetchRoles());
+    } catch (err) {
+      setRolesError(String((err as Error).message ?? err));
+    } finally {
+      setRolesLoading(false);
+    }
+  };
+
+  // Muat daftar peran saat pertama kali tab dibuka.
+  useEffect(() => {
+    if (adminTab === 'roles' && roles.length === 0 && !rolesError) {
+      loadRoles();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminTab]);
+
+  const handleSaveRole = async (email: string, role: AppRole) => {
+    const target = email.trim().toLowerCase();
+    if (!target) {
+      setRoleNotice('Email wajib diisi');
+      return;
+    }
+    setRoleSaving(true);
+    setRoleNotice(null);
+    try {
+      const saved = await saveRole(target, role);
+      setRoles((prev) => {
+        const rest = prev.filter((r) => r.email !== saved.email);
+        return [saved, ...rest];
+      });
+      setRoleEmail('');
+      setRoleNotice(`Peran ${target} disetel jadi ${role}.`);
+    } catch (err) {
+      setRoleNotice(`Gagal: ${String((err as Error).message ?? err)}`);
+    } finally {
+      setRoleSaving(false);
+    }
+  };
 
   // --- Billing states ---
   const [billingFilter, setBillingFilter] = useState<BillingFilter>('all');
@@ -380,6 +435,7 @@ export default function AdminDashboard({
               { id: 'users', label: 'Manajemen User', icon: Users },
               { id: 'notif', label: 'Notifikasi', icon: Bell },
               { id: 'laporan', label: 'Laporan', icon: BarChart2 },
+              { id: 'roles', label: 'Kelola Peran', icon: ShieldCheck },
               { id: 'pengaturan', label: 'Pengaturan Platform', icon: Settings },
             ] as { id: AdminTab; label: string; icon: React.ComponentType<{ className?: string }> }[]
           ).map(({ id, label, icon: Icon }) => (
@@ -1514,6 +1570,130 @@ export default function AdminDashboard({
                 </button>
               </div>
 
+            </div>
+          </div>
+        )}
+
+        {adminTab === 'roles' && (
+          <div className="space-y-8">
+            <div>
+              <h1 className="text-2xl font-black text-white">Kelola Peran</h1>
+              <p className="text-slate-400 text-sm mt-1">
+                Peran (Murid / Dosen / Admin) diatur di sini — <strong>tanpa perlu ke SSO</strong>.
+                Cukup masukkan email pengguna lalu pilih perannya.
+              </p>
+            </div>
+
+            {/* Form set peran */}
+            <div className="bg-[#16181D] border border-white/10 rounded-2xl p-6 shadow-lg space-y-4">
+              <h3 className="font-bold text-white text-sm">Setel Peran Pengguna</h3>
+              <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+                <div className="flex-1 space-y-1">
+                  <label className="text-[10px] text-slate-400 font-bold uppercase block">Email Pengguna</label>
+                  <input
+                    type="email"
+                    value={roleEmail}
+                    onChange={(e) => setRoleEmail(e.target.value)}
+                    placeholder="nama@contoh.com"
+                    className="w-full text-sm px-4 py-2.5 bg-[#0F1115] border border-white/10 rounded-xl text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-400 font-bold uppercase block">Peran</label>
+                  <select
+                    value={roleValue}
+                    onChange={(e) => setRoleValue(e.target.value as AppRole)}
+                    className="text-sm px-4 py-2.5 bg-[#0F1115] border border-white/10 rounded-xl text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                  >
+                    <option value="student" className="bg-[#16181D]">Murid</option>
+                    <option value="mentor" className="bg-[#16181D]">Dosen</option>
+                    <option value="admin" className="bg-[#16181D]">Admin</option>
+                  </select>
+                </div>
+                <button
+                  onClick={() => handleSaveRole(roleEmail, roleValue)}
+                  disabled={roleSaving}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-sm transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {roleSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                  Simpan Peran
+                </button>
+              </div>
+              {roleNotice && (
+                <div className="text-xs text-slate-300 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                  {roleNotice}
+                </div>
+              )}
+            </div>
+
+            {/* Daftar peran */}
+            <div className="bg-[#16181D] border border-white/10 rounded-2xl p-6 shadow-lg space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-white text-sm">Daftar Peran Terdaftar</h3>
+                <button
+                  onClick={loadRoles}
+                  disabled={rolesLoading}
+                  className="text-xs px-3 py-1.5 border border-white/10 hover:bg-white/5 text-slate-300 rounded-lg transition disabled:opacity-60 flex items-center gap-1.5"
+                >
+                  {rolesLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+                  Muat Ulang
+                </button>
+              </div>
+
+              {rolesError && (
+                <div className="text-xs text-rose-300 bg-rose-500/10 border border-rose-500/30 rounded-lg px-3 py-2 flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <span>{rolesError}</span>
+                </div>
+              )}
+
+              {!rolesError && roles.length === 0 && !rolesLoading && (
+                <p className="text-xs text-slate-500">Belum ada peran yang disetel. Tambahkan lewat form di atas.</p>
+              )}
+
+              {roles.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-[10px] text-slate-500 uppercase border-b border-white/10">
+                        <th className="p-3">Email</th>
+                        <th className="p-3">Peran</th>
+                        <th className="p-3 text-right">Ubah</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {roles.map((r) => (
+                        <tr key={r.email} className="border-b border-white/5">
+                          <td className="p-3 text-slate-200">{r.email}</td>
+                          <td className="p-3">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                              r.role === 'admin'
+                                ? 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+                                : r.role === 'mentor'
+                                ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                                : 'text-slate-300 bg-white/5 border-white/10'
+                            }`}>
+                              {r.role === 'admin' ? 'Admin' : r.role === 'mentor' ? 'Dosen' : 'Murid'}
+                            </span>
+                          </td>
+                          <td className="p-3 text-right">
+                            <select
+                              value={r.role}
+                              onChange={(e) => handleSaveRole(r.email, e.target.value as AppRole)}
+                              disabled={roleSaving}
+                              className="text-xs px-2 py-1.5 bg-[#0F1115] border border-white/10 rounded-lg text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none disabled:opacity-60"
+                            >
+                              <option value="student" className="bg-[#16181D]">Murid</option>
+                              <option value="mentor" className="bg-[#16181D]">Dosen</option>
+                              <option value="admin" className="bg-[#16181D]">Admin</option>
+                            </select>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}
