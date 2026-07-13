@@ -91,13 +91,17 @@ export default function Navbar({ notifications = [], onMarkNotifRead }: NavbarPr
 
           <span className="text-white/10 px-1 select-none">|</span>
 
-          <Link to="/kelas" className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition ${location.pathname === '/kelas' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
-            Dashboard Murid
-          </Link>
+          {user?.realm !== 'mentor' && (
+            <Link to="/kelas" className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition ${location.pathname === '/kelas' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
+              Dashboard Murid
+            </Link>
+          )}
 
-          <Link to="/mentor" className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition ${location.pathname === '/mentor' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
-            Dashboard Dosen
-          </Link>
+          {user?.realm === 'mentor' && (
+            <Link to="/mentor" className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition ${location.pathname === '/mentor' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
+              Dashboard Dosen
+            </Link>
+          )}
 
           {user?.realm === 'mentor' && (
             <Link to="/admin" className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold transition ${location.pathname === '/admin' ? 'text-amber-400 bg-amber-500/10' : 'text-slate-400 hover:text-amber-400 hover:bg-amber-500/5'}`}>
@@ -206,14 +210,18 @@ export default function Navbar({ notifications = [], onMarkNotifRead }: NavbarPr
               {label}
             </a>
           ))}
-          <Link to="/kelas" onClick={() => setMobileOpen(false)}
-            className={`block px-4 py-2.5 rounded-lg text-sm font-semibold ${location.pathname === '/kelas' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-300 hover:bg-white/5'}`}>
-            Dashboard Murid
-          </Link>
-          <Link to="/mentor" onClick={() => setMobileOpen(false)}
-            className={`block px-4 py-2.5 rounded-lg text-sm font-semibold ${location.pathname === '/mentor' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-300 hover:bg-white/5'}`}>
-            Dashboard Dosen
-          </Link>
+          {user?.realm !== 'mentor' && (
+            <Link to="/kelas" onClick={() => setMobileOpen(false)}
+              className={`block px-4 py-2.5 rounded-lg text-sm font-semibold ${location.pathname === '/kelas' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-300 hover:bg-white/5'}`}>
+              Dashboard Murid
+            </Link>
+          )}
+          {user?.realm === 'mentor' && (
+            <Link to="/mentor" onClick={() => setMobileOpen(false)}
+              className={`block px-4 py-2.5 rounded-lg text-sm font-semibold ${location.pathname === '/mentor' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-300 hover:bg-white/5'}`}>
+              Dashboard Dosen
+            </Link>
+          )}
           {user?.realm === 'mentor' && (
             <Link to="/admin" onClick={() => setMobileOpen(false)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold ${location.pathname === '/admin' ? 'text-amber-400 bg-amber-500/10' : 'text-slate-300 hover:bg-white/5'}`}>
