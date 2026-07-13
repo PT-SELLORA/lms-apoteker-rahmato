@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, Pause, Volume2, VolumeX, Sparkles, Award, ExternalLink, Search, CheckCircle2 } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Sparkles, Award, Search, CheckCircle2 } from 'lucide-react';
 import { Class, Material } from '../types';
 
 interface ClassroomVideoTabProps {
@@ -254,18 +254,6 @@ export default function ClassroomVideoTab({ activeClass, materials, onMaterialAc
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 {watchedVideos.has(activeVideo.id) ? 'Sudah Ditonton' : 'Tandai Selesai'}
               </button>
-
-              {activeClass.playlistUrl && (
-                <a
-                  href={activeClass.playlistUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 font-bold bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 px-3 py-2 rounded-xl transition shrink-0 cursor-pointer self-start sm:self-center"
-                >
-                  <span>Buka di YouTube</span>
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              )}
             </div>
           </div>
 

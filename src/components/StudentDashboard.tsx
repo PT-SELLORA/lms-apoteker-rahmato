@@ -1268,7 +1268,7 @@ export default function StudentDashboard({
                     <h3 className="font-extrabold text-lg">Billing & Pendaftaran</h3>
                     <p className="text-slate-400 text-xs flex items-center gap-1.5">
                       <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
-                      Pembayaran aman via Xendit — Gateway Ventera
+                      Pembayaran aman & terenkripsi
                     </p>
                   </div>
                   <button
@@ -1315,8 +1315,8 @@ export default function StudentDashboard({
                   </div>
 
                   <div className="text-xs text-slate-300 bg-emerald-500/5 p-3 rounded-xl border border-emerald-500/20">
-                    Anda akan diarahkan ke halaman pembayaran aman <strong>Xendit</strong>. Setelah
-                    pembayaran berhasil, konfirmasi dana diverifikasi otomatis oleh gateway Ventera dan
+                    Anda akan diarahkan ke <strong>halaman pembayaran aman</strong>. Setelah
+                    pembayaran berhasil, konfirmasi dana diverifikasi otomatis dan
                     kelas Anda langsung aktif.
                   </div>
 
@@ -1340,7 +1340,7 @@ export default function StudentDashboard({
                       </>
                     ) : (
                       <>
-                        <span>Bayar Sekarang via Xendit</span>
+                        <span>Bayar Sekarang</span>
                         <ArrowRight className="h-4 w-4" />
                       </>
                     )}

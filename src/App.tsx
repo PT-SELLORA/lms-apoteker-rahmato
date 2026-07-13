@@ -139,7 +139,7 @@ export default function App() {
             generationName: cls.generationName,
             amount: pending.amount ?? cls.price,
             status: 'success',
-            paymentMethod: 'Xendit',
+            paymentMethod: 'Pembayaran Online',
             createdAt: new Date().toISOString(),
           };
           transactions = [newTx, ...data.transactions];
