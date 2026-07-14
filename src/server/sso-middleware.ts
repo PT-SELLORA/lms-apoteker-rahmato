@@ -69,7 +69,13 @@ async function handleCallback(req: IncomingMessage, res: ServerResponse) {
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
     });
-    redirect(res, '/');
+    // Peran = sumber kebenaran DB LMS (user_roles), bukan klaim SSO.
+    const realm = await resolveRealm({
+      email: claims.email as string | undefined,
+      realm: (claims as Record<string, unknown>).realm as string | undefined,
+    } as SessionData);
+    const redirectTo = realm === 'admin' ? '/admin' : realm === 'mentor' ? '/mentor' : '/kelas';
+    redirect(res, redirectTo);
   } catch (err) {
     console.error('[SSO] callback error:', err);
     redirect(res, `/?sso_error=${encodeURIComponent(String(err))}`);

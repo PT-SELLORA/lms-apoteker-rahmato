@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { completeAuthorization } from '../lib/sso.server.js';
 import { setSession, consumeTransaction } from '../lib/session.server.js';
+import { getRoleByEmail } from '../lib/roles.server.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const host = req.headers.host ?? 'rahmato.storo.id';
@@ -25,8 +26,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
     });
-    const realm = (claims as Record<string, unknown>).realm as string | undefined;
-    const redirectTo = realm === 'mentor' ? '/mentor' : '/kelas';
+    // Peran = sumber kebenaran DB LMS (user_roles), bukan klaim SSO.
+    const dbRole = await getRoleByEmail(claims.email as string | undefined);
+    const realm = dbRole ?? ((claims as Record<string, unknown>).realm as string | undefined) ?? 'student';
+    const redirectTo = realm === 'admin' ? '/admin' : realm === 'mentor' ? '/mentor' : '/kelas';
     res.writeHead(303, { Location: redirectTo });
     res.end();
   } catch (err) {

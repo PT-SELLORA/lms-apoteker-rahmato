@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { CheckCircle2, XCircle, X } from 'lucide-react';
-import { getOrInitState, saveState, MENTOR_RAHMATO, GENERATIONS } from './data/coursesData';
+import { getOrInitState, saveState, MENTOR_RAHMATO } from './data/coursesData';
 import { loadClasses } from './lib/api';
 import { Class, User, Transaction, QuizAttempt, ForumPost, Material, Notification, DirectMessage } from './types';
 import LandingPage from './components/LandingPage';
@@ -206,56 +206,7 @@ export default function App() {
   // SSO student derived from session
   const ssoStudent = ssoUser ? getSsoStudent(ssoUser, students) : null;
 
-  // 1. PURCHASE SUCCESS (Checkout/Billing Automation)
-  const handlePurchaseSuccess = (classId: string, amount: number, paymentMethod: string) => {
-    if (!ssoStudent) return;
-    const activeStudent = ssoStudent;
-
-    const txId = `TX-${Date.now().toString().slice(-6)}`;
-    const cls = classes.find((c) => c.id === classId);
-    if (!cls) return;
-
-    const newTransaction: Transaction = {
-      id: txId,
-      userId: activeStudent.id,
-      userName: activeStudent.name,
-      userEmail: activeStudent.email,
-      classId,
-      className: cls.name,
-      generationName: cls.generationName,
-      amount,
-      status: 'success',
-      paymentMethod,
-      createdAt: new Date().toISOString(),
-    };
-
-    const updatedStudents = students.map((s) => {
-      if (s.id === activeStudent.id) {
-        const updatedEnrolled = s.enrolledClasses.includes(classId)
-          ? s.enrolledClasses
-          : [...s.enrolledClasses, classId];
-        return { ...s, enrolledClasses: updatedEnrolled };
-      }
-      return s;
-    });
-
-    const updatedClasses = classes.map((c) => {
-      if (c.id === classId) {
-        return { ...c, studentsCount: c.studentsCount + 1 };
-      }
-      return c;
-    });
-
-    const updatedTransactions = [newTransaction, ...transactions];
-
-    setClasses(updatedClasses);
-    setStudents(updatedStudents);
-    setTransactions(updatedTransactions);
-
-    triggerSaveState(updatedClasses, updatedStudents, forumPosts, updatedTransactions, attempts);
-  };
-
-  // 2. RELEASE MATERIAL (Admin publishing content)
+  // RELEASE MATERIAL (Admin publishing content)
   const handleAddMaterial = (
     classId: string,
     title: string,
@@ -514,12 +465,7 @@ export default function App() {
 
       <Routes>
         <Route path="/" element={
-          <LandingPage
-            generations={GENERATIONS}
-            classes={classes}
-            students={students}
-            currentStudentId=""
-          />
+          <LandingPage classes={classes} />
         } />
 
         <Route path="/kelas" element={
@@ -530,11 +476,9 @@ export default function App() {
               transactions={transactions.filter(t => t.userId === ssoStudent?.id)}
               attempts={attempts.filter(a => a.studentId === ssoStudent?.id)}
               forumPosts={forumPosts}
-              onPurchaseSuccess={handlePurchaseSuccess}
               onAddForumPost={handleAddForumPost}
               onAddForumReply={handleAddForumReply}
               onQuizSubmit={handleQuizSubmit}
-              onLogOut={() => navigate('/')}
               notifications={notifications}
               messages={messages}
               onSendMessage={handleSendMessage}
@@ -554,7 +498,6 @@ export default function App() {
               onAddMaterial={handleAddMaterial}
               onAddStudent={handleAddStudent}
               onAddForumReply={handleAddForumReply}
-              onLogOut={() => navigate('/')}
             />
           </RequireAuth>
         } />

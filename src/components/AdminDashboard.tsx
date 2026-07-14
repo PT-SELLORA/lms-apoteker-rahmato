@@ -24,29 +24,15 @@ import {
   ShieldCheck,
   Loader2,
 } from 'lucide-react';
-import { Class, User, Transaction, QuizAttempt } from '../types';
+import { Class, User, Transaction, QuizAttempt, Notification } from '../types';
 import { fetchRoles, saveRole, type UserRoleEntry, type AppRole } from '../lib/api';
 
-// [MOCK] Platform stats — ganti dengan API call ketika backend ready
+// [MOCK] Agregat historis lintas-angkatan (skala 35k) untuk KPI Ringkasan.
+// Sengaja statis — ganti dengan agregat DB nyata ketika backend aktif.
 const PLATFORM_STATS_FALLBACK = {
   totalAlumni: 35247,
   totalRevenue: 892_500_000,
-  activeStudents: 847,
-  avgPassRate: 94.2,
-  platformFeePercent: 5,
-  maintenanceFeeMonthly: 500_000,
 };
-
-// Inline Notification type until types.ts is updated by the other agent
-interface Notification {
-  id: string;
-  userId: string;
-  type: 'payment' | 'material' | 'forum' | 'announcement';
-  title: string;
-  body: string;
-  read: boolean;
-  createdAt: string;
-}
 
 interface AdminDashboardProps {
   classes: Class[];
@@ -501,11 +487,11 @@ export default function AdminDashboard({
                   <UserCheck className="h-5 w-5" />
                 </div>
                 <div>
-                  <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">User Aktif (Gen 6)</div>
+                  <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">User Aktif</div>
                   <div className="text-lg font-black text-white mt-0.5">
-                    {PLATFORM_STATS_FALLBACK.activeStudents}
+                    {activeStudentsCount}
                   </div>
-                  <div className="text-[10px] text-slate-500">Angkatan berjalan</div>
+                  <div className="text-[10px] text-slate-500">Terdaftar & aktif</div>
                 </div>
               </div>
 
@@ -517,7 +503,7 @@ export default function AdminDashboard({
                 <div>
                   <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Pending Bayar</div>
                   <div className="text-lg font-black text-yellow-400 mt-0.5">{pendingCount}</div>
-                  <div className="text-[10px] text-slate-500">Menunggu konfirmasi</div>
+                  <div className="text-[10px] text-slate-500">{pendingAmount > 0 ? formatRupiah(pendingAmount) : 'Menunggu konfirmasi'}</div>
                 </div>
               </div>
 
@@ -540,7 +526,7 @@ export default function AdminDashboard({
                 </div>
                 <div>
                   <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Tingkat Kelulusan</div>
-                  <div className="text-lg font-black text-white mt-0.5">{PLATFORM_STATS_FALLBACK.avgPassRate}%</div>
+                  <div className="text-lg font-black text-white mt-0.5">{passRate}%</div>
                   <div className="text-[10px] text-slate-500">Rata-rata kuis</div>
                 </div>
               </div>

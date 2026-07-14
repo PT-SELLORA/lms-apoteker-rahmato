@@ -9,13 +9,10 @@ import {
   Stethoscope,
   Heart,
 } from 'lucide-react';
-import { Generation, Class, User } from '../types';
+import { Class } from '../types';
 
 interface LandingPageProps {
-  generations: Generation[];
   classes: Class[];
-  students: User[];
-  currentStudentId: string;
 }
 
 const containerVariants = {
@@ -55,10 +52,7 @@ const scaleUpVariants = {
 };
 
 export default function LandingPage({
-  generations,
   classes,
-  students,
-  currentStudentId,
 }: LandingPageProps) {
   const totalStudentsCount = classes.reduce((acc, c) => acc + c.studentsCount, 0);
   const activeGenId = 'gen6';

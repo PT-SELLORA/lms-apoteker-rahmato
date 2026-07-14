@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   BookOpen,
@@ -7,7 +7,6 @@ import {
   Award,
   ChevronLeft,
   Play,
-  Pause,
   FileText,
   CheckSquare,
   MessageSquare,
@@ -17,19 +16,9 @@ import {
   Lock,
   Clock,
   ArrowRight,
-  ExternalLink,
   ChevronRight,
-  Sparkles,
   Download,
   Share2,
-  Eye,
-  Smile,
-  Image as ImageIcon,
-  Volume2,
-  VolumeX,
-  RotateCcw,
-  Mic,
-  Trash2,
   Check,
   Search,
   User2,
@@ -55,11 +44,9 @@ interface StudentDashboardProps {
   transactions: Transaction[];
   attempts: QuizAttempt[];
   forumPosts: ForumPost[];
-  onPurchaseSuccess: (classId: string, amount: number, paymentMethod: string) => void;
   onAddForumPost: (classId: string, title: string, content: string) => void;
   onAddForumReply: (postId: string, content: string) => void;
   onQuizSubmit: (classId: string, score: number, passed: boolean) => void;
-  onLogOut: () => void;
   notifications?: Notification[];
   schedules?: Schedule[];
   messages?: DirectMessage[];
@@ -73,11 +60,9 @@ export default function StudentDashboard({
   transactions,
   attempts,
   forumPosts,
-  onPurchaseSuccess,
   onAddForumPost,
   onAddForumReply,
   onQuizSubmit,
-  onLogOut,
   notifications: _notifications,
   schedules,
   messages,
@@ -90,65 +75,28 @@ export default function StudentDashboard({
   // Classroom viewer state
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [activeMaterialId, setActiveMaterialId] = useState<string | null>(null);
-  
-  // Classroom inner states
+
+  // Classroom inner tab. Isi tiap tab (video/file/kuis/forum) dikelola komponen anaknya.
   const [classroomTab, setClassroomTab] = useState<'video' | 'files' | 'quiz' | 'forum'>('video');
-  const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
-  
-  // Video player controls state
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
-  const [videoProgress, setVideoProgress] = useState<number>(15); // mock initial progress %
-  const [videoVolume, setVideoVolume] = useState<number>(80);
-  const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [videoTime, setVideoTime] = useState<string>('08:12');
-  const [userNote, setUserNote] = useState<string>('');
-  const [noteSaved, setNoteSaved] = useState<boolean>(false);
 
-  // File Reference tab states
-  const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({});
-  const [downloadedFiles, setDownloadedFiles] = useState<Record<string, boolean>>({});
-  const [readerFileId, setReaderFileId] = useState<string | null>(null);
-  const [readerTextSize, setReaderTextSize] = useState<number>(14);
-  const [readerTheme, setReaderTheme] = useState<'dark' | 'light'>('dark');
-  const [readerCompleted, setReaderCompleted] = useState<Record<string, boolean>>({});
-
-  // Quiz timer state
-  const [quizTimeLeft, setQuizTimeLeft] = useState<number>(2700); // 45 minutes
-
-  // Rich forum attachment states
-  const [attachedImage, setAttachedImage] = useState<string | null>(null);
-  const [attachedGif, setAttachedGif] = useState<string | null>(null);
-  const [attachedVoiceDuration, setAttachedVoiceDuration] = useState<string | null>(null);
-  const [isRecordingVoice, setIsRecordingVoice] = useState<boolean>(false);
-  const [voiceRecordSeconds, setVoiceRecordSeconds] = useState<number>(0);
-  const [showEmojiPicker, setShowEmojiPicker] = useState<boolean>(false);
-  const [showGifPicker, setShowGifPicker] = useState<boolean>(false);
-  const [showImagePicker, setShowImagePicker] = useState<boolean>(false);
-  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
-  const [voiceProgressPercent, setVoiceProgressPercent] = useState<Record<string, number>>({});
-  
   // Checkout Modal State (Xendit via Internal Ventera gateway)
   const [checkoutClassId, setCheckoutClassId] = useState<string | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState<boolean>(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
-
-  // Quiz taking state
-  const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({});
-  const [quizSubmitted, setQuizSubmitted] = useState<boolean>(false);
-  const [quizResult, setQuizResult] = useState<{ score: number; passed: boolean } | null>(null);
-
-  // Forum states
-  const [newPostTitle, setNewPostTitle] = useState<string>('');
-  const [newPostContent, setNewPostContent] = useState<string>('');
-  const [newReplyContent, setNewReplyContent] = useState<Record<string, string>>({});
-  const [isAddingPost, setIsAddingPost] = useState<boolean>(false);
 
   // Catalog search state
   const [catalogSearchQuery, setCatalogSearchQuery] = useState('');
 
   // Inbox state
   const [inboxMessage, setInboxMessage] = useState('');
+
+  // Profile edit state (demo: perubahan disimpan lokal sementara backend belum aktif)
+  const [profileSaved, setProfileSaved] = useState(false);
+
+  const handleSaveProfile = () => {
+    setProfileSaved(true);
+    window.setTimeout(() => setProfileSaved(false), 2500);
+  };
 
   // Accessed Materials state
   const [accessedMaterials, setAccessedMaterials] = useState<Record<string, string[]>>(() => {
@@ -232,35 +180,9 @@ export default function StudentDashboard({
     return base;
   }, [selectedClassId, activeClass]);
 
-  const activeMaterial = materials.find((m) => m.id === activeMaterialId);
-
-  // Selected class quiz
+  // Selected class quiz template (dipakai ClassroomQuizTab)
   const isAdvanceClass = activeClass?.category === 'ADVANCE';
   const quizTemplate = isAdvanceClass ? QUIZ_TEMPLATES.advance : QUIZ_TEMPLATES.reguler;
-
-  // Quiz Countdown Timer Effect
-  useEffect(() => {
-    if (classroomTab !== 'quiz' || quizSubmitted || !selectedClassId) return;
-    const interval = setInterval(() => {
-      setQuizTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [classroomTab, quizSubmitted, selectedClassId]);
-
-  // Voice Note Recording countdown simulator
-  useEffect(() => {
-    if (!isRecordingVoice) return;
-    const interval = setInterval(() => {
-      setVoiceRecordSeconds((prev) => prev + 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isRecordingVoice]);
 
   // Handle click on a class to open the classroom
   const handleOpenClassroom = (classId: string) => {
@@ -269,22 +191,6 @@ export default function StudentDashboard({
     const firstVideo = classMaterials.find(m => m.type === 'video');
     setActiveMaterialId(firstVideo?.id || classMaterials[0]?.id || null);
     setClassroomTab('video');
-    setActiveVideoId(null);
-    setIsPlaying(false);
-    setVideoProgress(15);
-    setUserNote('');
-    setNoteSaved(false);
-    setReaderFileId(null);
-    setAttachedImage(null);
-    setAttachedGif(null);
-    setAttachedVoiceDuration(null);
-    setIsRecordingVoice(false);
-    setVoiceRecordSeconds(0);
-    // Reset quiz state
-    setQuizAnswers({});
-    setQuizSubmitted(false);
-    setQuizResult(null);
-    setQuizTimeLeft(2700);
   };
 
   // Handle purchasing class triggering the checkout modal
@@ -333,51 +239,6 @@ export default function StudentDashboard({
       setCheckoutError(e instanceof Error ? e.message : 'Gagal memulai pembayaran.');
       setCheckoutLoading(false);
     }
-  };
-
-  // Handle quiz question answer selection
-  const handleSelectQuizAnswer = (questionId: string, optionIndex: number) => {
-    if (quizSubmitted) return;
-    setQuizAnswers((prev) => ({ ...prev, [questionId]: optionIndex }));
-  };
-
-  // Submit quiz
-  const handleQuizSubmitLocal = () => {
-    if (!selectedClassId) return;
-    
-    let correctCount = 0;
-    quizTemplate.questions.forEach((q) => {
-      if (quizAnswers[q.id] === q.correctOption) {
-        correctCount++;
-      }
-    });
-
-    const score = Math.round((correctCount / quizTemplate.questions.length) * 100);
-    const passed = score >= quizTemplate.passingScore;
-
-    setQuizResult({ score, passed });
-    setQuizSubmitted(true);
-    onQuizSubmit(selectedClassId, score, passed);
-  };
-
-  // Handle Forum Post submit
-  const handleCreatePost = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedClassId || !newPostTitle.trim() || !newPostContent.trim()) return;
-
-    onAddForumPost(selectedClassId, newPostTitle, newPostContent);
-    setNewPostTitle('');
-    setNewPostContent('');
-    setIsAddingPost(false);
-  };
-
-  // Handle Forum Reply submit
-  const handleCreateReply = (postId: string) => {
-    const replyText = newReplyContent[postId];
-    if (!replyText || !replyText.trim()) return;
-
-    onAddForumReply(postId, replyText);
-    setNewReplyContent((prev) => ({ ...prev, [postId]: '' }));
   };
 
   // Mock data for schedule and inbox
@@ -1053,7 +914,11 @@ export default function StudentDashboard({
             <div className="flex items-center gap-6 p-6 bg-[#16181D] border border-white/10 rounded-2xl">
               <div className="relative">
                 <img src={currentUser.avatar} className="w-20 h-20 rounded-full object-cover ring-2 ring-emerald-500" />
-                <button className="absolute bottom-0 right-0 bg-emerald-500 text-black rounded-full p-1 cursor-pointer">
+                <button
+                  onClick={() => alert('Ubah foto profil akan aktif setelah backend penyimpanan file siap. (demo)')}
+                  className="absolute bottom-0 right-0 bg-emerald-500 text-black rounded-full p-1 cursor-pointer"
+                  title="Ubah foto profil"
+                >
                   <User2 className="h-3 w-3" />
                 </button>
               </div>
@@ -1103,9 +968,20 @@ export default function StudentDashboard({
                   <input placeholder="Masukkan nomor STR/SIPA Anda" className="w-full bg-[#0F1115] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500" />
                 </div>
               </div>
-              <button className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-lg transition text-sm cursor-pointer">
-                Simpan Perubahan
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleSaveProfile}
+                  className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-lg transition text-sm cursor-pointer"
+                >
+                  Simpan Perubahan
+                </button>
+                {profileSaved && (
+                  <span className="flex items-center gap-1.5 text-emerald-400 text-sm font-semibold">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Perubahan disimpan
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         )}

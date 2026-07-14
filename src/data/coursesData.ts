@@ -1559,19 +1559,6 @@ export const DEFAULT_QUIZ_ATTEMPTS: QuizAttempt[] = [
   { id: 'att-045', studentId: 'student-rizki-ramadhan', quizId: 'quiz-reguler', classId: 'gen6-reguler-c', score: 80, passed: true, submittedAt: '2026-07-02T09:00:00Z' },
 ];
 
-// [MOCK DATA] Historical stats from legacy system — will be replaced by real DB aggregates
-export const PLATFORM_STATS = {
-  totalAlumni: 35247,        // Total users across all generations (imported dari sistem lama)
-  totalRevenue: 892_500_000, // Historical revenue sejak Gen 1
-  activeGeneration: 'Generasi 6',
-  activeStudents: 847,       // Aktif di Gen 6
-  totalGenerations: 6,
-  totalClasses: 36,
-  avgPassRate: 94.2,
-  platformFeePercent: 5,     // 5% revenue share ke platform
-  maintenanceFeeMonthly: 500_000,
-} as const;
-
 // Main State Initializer for Local Storage (Client-side persistence)
 export const getOrInitState = () => {
   const isBrowser = typeof window !== 'undefined';

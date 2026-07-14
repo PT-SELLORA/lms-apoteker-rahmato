@@ -428,6 +428,92 @@ export interface Database {
           }
         ];
       };
+      invoices: {
+        Row: {
+          id: string;
+          external_id: string;
+          class_id: string | null;
+          buyer_name: string;
+          buyer_email: string;
+          amount: number;
+          currency: string;
+          status: 'pending' | 'paid' | 'expired' | 'failed';
+          xendit_invoice_id: string | null;
+          invoice_url: string | null;
+          payment_method: string | null;
+          payment_channel: string | null;
+          environment: 'sandbox' | 'production' | null;
+          paid_at: string | null;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          external_id: string;
+          class_id?: string | null;
+          buyer_name?: string;
+          buyer_email?: string;
+          amount: number;
+          currency?: string;
+          status?: 'pending' | 'paid' | 'expired' | 'failed';
+          xendit_invoice_id?: string | null;
+          invoice_url?: string | null;
+          payment_method?: string | null;
+          payment_channel?: string | null;
+          environment?: 'sandbox' | 'production' | null;
+          paid_at?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          external_id?: string;
+          class_id?: string | null;
+          buyer_name?: string;
+          buyer_email?: string;
+          amount?: number;
+          currency?: string;
+          status?: 'pending' | 'paid' | 'expired' | 'failed';
+          xendit_invoice_id?: string | null;
+          invoice_url?: string | null;
+          payment_method?: string | null;
+          payment_channel?: string | null;
+          environment?: 'sandbox' | 'production' | null;
+          paid_at?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'invoices_class_id_fkey';
+            columns: ['class_id'];
+            isOneToOne: false;
+            referencedRelation: 'classes';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      user_roles: {
+        Row: {
+          email: string;
+          role: 'student' | 'mentor' | 'admin';
+          updated_at: string;
+        };
+        Insert: {
+          email: string;
+          role?: 'student' | 'mentor' | 'admin';
+          updated_at?: string;
+        };
+        Update: {
+          email?: string;
+          role?: 'student' | 'mentor' | 'admin';
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;

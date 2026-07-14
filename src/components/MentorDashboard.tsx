@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
 import {
   TrendingUp,
   Layers,
@@ -7,20 +6,13 @@ import {
   DollarSign,
   PlusCircle,
   Search,
-  Filter,
-  CheckCircle,
   MessageSquare,
   BookOpen,
-  UserCheck,
-  FileText,
-  ChevronRight,
-  AlertCircle,
   Award,
-  Video,
   Send
 } from 'lucide-react';
-import { Class, User, Transaction, QuizAttempt, ForumPost, Generation } from '../types';
-import { MENTOR_RAHMATO, GENERATIONS } from '../data/coursesData';
+import { Class, User, Transaction, QuizAttempt, ForumPost } from '../types';
+import { GENERATIONS } from '../data/coursesData';
 
 interface MentorDashboardProps {
   classes: Class[];
@@ -31,7 +23,6 @@ interface MentorDashboardProps {
   onAddMaterial: (classId: string, title: string, type: 'video' | 'pdf', description: string, durationOrPages: string, content: string) => void;
   onAddStudent: (name: string, email: string, profession: User['profession'], initialClassId?: string) => void;
   onAddForumReply: (postId: string, content: string) => void;
-  onLogOut: () => void;
 }
 
 export default function MentorDashboard({
@@ -43,7 +34,6 @@ export default function MentorDashboard({
   onAddMaterial,
   onAddStudent,
   onAddForumReply,
-  onLogOut,
 }: MentorDashboardProps) {
   // Navigation State inside Admin
   const [adminTab, setAdminTab] = useState<'stats' | 'generations' | 'students' | 'transactions' | 'content-editor' | 'forum'>('stats');

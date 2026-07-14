@@ -14,6 +14,20 @@ export type AppRole = 'student' | 'mentor' | 'admin';
 const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? '';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 
+// Bootstrap peran via env (comma-separated email). Mencegah "ayam-telur":
+// tanpa ini, tabel user_roles kosong => semua orang jadi student => tidak ada
+// admin => tidak ada yang bisa mengangkat admin lewat /api/roles.
+// ADMIN_EMAILS menang mutlak (tak bisa terkunci di luar). MENTOR_EMAILS jadi
+// fallback bila belum ada baris DB.
+function parseEmails(raw?: string): string[] {
+  return (raw ?? '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+}
+const ADMIN_EMAILS = parseEmails(process.env.ADMIN_EMAILS);
+const MENTOR_EMAILS = parseEmails(process.env.MENTOR_EMAILS);
+
 function restHeaders(extra: Record<string, string> = {}): Record<string, string> {
   return {
     apikey: SERVICE_KEY,
@@ -27,20 +41,36 @@ function configured(): boolean {
   return Boolean(SUPABASE_URL && SERVICE_KEY);
 }
 
-/** Ambil peran untuk satu email. Null bila tidak ada baris / belum dikonfigurasi. */
+/**
+ * Peran untuk satu email. Urutan prioritas:
+ *   1. ADMIN_EMAILS (env)   -> admin  (bootstrap, tak bergantung DB)
+ *   2. baris di user_roles  -> peran DB
+ *   3. MENTOR_EMAILS (env)  -> mentor (fallback bila DB belum punya baris)
+ *   4. null
+ */
 export async function getRoleByEmail(email?: string): Promise<AppRole | null> {
-  if (!email || !configured()) return null;
-  const url = `${SUPABASE_URL}/rest/v1/user_roles?email=eq.${encodeURIComponent(
-    email.toLowerCase(),
-  )}&select=role&limit=1`;
-  try {
-    const resp = await fetch(url, { headers: restHeaders() });
-    if (!resp.ok) return null;
-    const rows = (await resp.json()) as Array<{ role: AppRole }>;
-    return rows[0]?.role ?? null;
-  } catch {
-    return null;
+  if (!email) return null;
+  const normalized = email.toLowerCase();
+
+  if (ADMIN_EMAILS.includes(normalized)) return 'admin';
+
+  if (configured()) {
+    const url = `${SUPABASE_URL}/rest/v1/user_roles?email=eq.${encodeURIComponent(
+      normalized,
+    )}&select=role&limit=1`;
+    try {
+      const resp = await fetch(url, { headers: restHeaders() });
+      if (resp.ok) {
+        const rows = (await resp.json()) as Array<{ role: AppRole }>;
+        if (rows[0]?.role) return rows[0].role;
+      }
+    } catch {
+      // abaikan — jatuh ke fallback env di bawah
+    }
   }
+
+  if (MENTOR_EMAILS.includes(normalized)) return 'mentor';
+  return null;
 }
 
 /**
