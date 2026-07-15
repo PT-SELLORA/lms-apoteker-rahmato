@@ -6,12 +6,30 @@
 import { EncryptJWT, jwtDecrypt } from 'jose';
 import type { IncomingMessage, ServerResponse } from 'http';
 
-const SECRET = (process.env.SESSION_SECRET ?? 'dev-secret-change-me-min-32chars').padEnd(32, '_').slice(0, 32);
-const COOKIE_NAME = process.env.SESSION_COOKIE_NAME ?? 'ventera_session';
-const TX_COOKIE = 'sso_tx';
 const IS_PROD = process.env.NODE_ENV === 'production';
 
-const key = new TextEncoder().encode(SECRET);
+const RAW_SECRET = process.env.SESSION_SECRET ?? '';
+const DEV_FALLBACK_SECRET = 'dev-secret-change-me-min-32chars';
+const COOKIE_NAME = process.env.SESSION_COOKIE_NAME ?? 'ventera_session';
+const TX_COOKIE = 'sso_tx';
+
+// Kunci enkripsi cookie sesi (JWE), dihitung lazy saat pertama dipakai. Sesi
+// membawa identitas + peran efektif, jadi kunci lemah = cookie bisa dipalsukan =
+// eskalasi jadi admin. Di production SESSION_SECRET WAJIB diset & kuat (min 32
+// karakter, bukan default) — kalau tidak, gagal keras. Lazy agar proses build
+// (yang meng-import modul ini) tidak ikut throw.
+let cachedKey: Uint8Array | null = null;
+function sessionKey(): Uint8Array {
+  if (cachedKey) return cachedKey;
+  if (IS_PROD && (RAW_SECRET.length < 32 || RAW_SECRET === DEV_FALLBACK_SECRET)) {
+    throw new Error(
+      'SESSION_SECRET wajib diset minimal 32 karakter acak di production (jangan pakai default).',
+    );
+  }
+  const secret = (RAW_SECRET || DEV_FALLBACK_SECRET).padEnd(32, '_').slice(0, 32);
+  cachedKey = new TextEncoder().encode(secret);
+  return cachedKey;
+}
 
 export interface SessionData {
   sub: string;
@@ -63,7 +81,7 @@ export async function setSession(
     .setProtectedHeader({ alg: 'dir', enc: 'A256GCM' })
     .setIssuedAt()
     .setExpirationTime(exp)
-    .encrypt(key);
+    .encrypt(sessionKey());
   setCookie(res, COOKIE_NAME, jwe, ttlSeconds);
 }
 
@@ -71,7 +89,7 @@ export async function getSession(req: IncomingMessage): Promise<SessionData | nu
   const token = parseCookies(req)[COOKIE_NAME];
   if (!token) return null;
   try {
-    const { payload } = await jwtDecrypt(token, key);
+    const { payload } = await jwtDecrypt(token, sessionKey());
     return payload as unknown as SessionData;
   } catch {
     return null;
@@ -91,7 +109,7 @@ export async function setTransaction(
     .setProtectedHeader({ alg: 'dir', enc: 'A256GCM' })
     .setIssuedAt()
     .setExpirationTime('10m')
-    .encrypt(key);
+    .encrypt(sessionKey());
   setCookie(res, TX_COOKIE, jwe, 600);
 }
 
@@ -102,7 +120,7 @@ export async function consumeTransaction(
   const token = parseCookies(req)[TX_COOKIE];
   if (!token) return null;
   try {
-    const { payload } = await jwtDecrypt(token, key);
+    const { payload } = await jwtDecrypt(token, sessionKey());
     deleteCookie(res, TX_COOKIE);
     return { state: payload.state as string, codeVerifier: payload.codeVerifier as string };
   } catch {
