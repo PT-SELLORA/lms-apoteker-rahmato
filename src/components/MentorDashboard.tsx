@@ -41,7 +41,7 @@ interface MentorDashboardProps {
   transactions: Transaction[];
   attempts: QuizAttempt[];
   forumPosts: ForumPost[];
-  onAddMaterial: (classId: string, title: string, type: 'video' | 'pdf', description: string, durationOrPages: string, content: string, youtubeId?: string) => void;
+  onAddMaterial: (classId: string, title: string, type: 'video' | 'pdf', description: string, durationOrPages: string, content: string, youtubeId?: string, documentUrl?: string) => void;
   onAddStudent: (name: string, email: string, profession: User['profession'], initialClassId?: string) => void;
   onEditStudent: (userId: string, updates: { name: string; email: string; profession: User['profession'] }) => void;
   onDeleteStudent: (userId: string) => void;
@@ -84,6 +84,7 @@ export default function MentorDashboard({
   const [materialLength, setMaterialLength] = useState('');
   const [materialContent, setMaterialContent] = useState('');
   const [materialYoutubeId, setMaterialYoutubeId] = useState('');
+  const [materialDocUrl, setMaterialDocUrl] = useState('');
   const [materialSuccess, setMaterialSuccess] = useState(false);
 
   // Form states for adding student
@@ -113,7 +114,8 @@ export default function MentorDashboard({
     content: string;
     type: Material['type'];
     youtubeId: string;
-  }>({ title: '', description: '', durationOrPages: '', content: '', type: 'pdf', youtubeId: '' });
+    documentUrl: string;
+  }>({ title: '', description: '', durationOrPages: '', content: '', type: 'pdf', youtubeId: '', documentUrl: '' });
   // Counter untuk memaksa hitung-ulang materi efektif setelah edit/hapus/tambah.
   const [matVersion, setMatVersion] = useState(0);
 
@@ -167,6 +169,7 @@ export default function MentorDashboard({
       type: mat.type,
       // Materi video default memakai ID YouTube sebagai id materi.
       youtubeId: mat.youtubeId ?? (/^[A-Za-z0-9_-]{11}$/.test(mat.id) ? mat.id : ''),
+      documentUrl: mat.documentUrl ?? '',
     });
   };
 
@@ -174,10 +177,13 @@ export default function MentorDashboard({
   const saveEditMaterial = () => {
     if (!editMaterialId || !editMaterialDraft.title.trim()) return;
     const overrides = readLS<Record<string, Partial<Material>>>(MATERIAL_OVERRIDES_KEY, {});
-    const { type: _type, youtubeId, ...rest } = editMaterialDraft;
+    const { type: _type, youtubeId, documentUrl, ...rest } = editMaterialDraft;
     const patch: Partial<Material> = { ...rest };
     if (_type === 'video') {
       patch.youtubeId = extractYouTubeId(youtubeId) || undefined;
+    }
+    if (_type === 'pdf') {
+      patch.documentUrl = documentUrl.trim() || undefined;
     }
     overrides[editMaterialId] = { ...(overrides[editMaterialId] ?? {}), ...patch };
     localStorage.setItem(MATERIAL_OVERRIDES_KEY, JSON.stringify(overrides));
@@ -250,7 +256,8 @@ export default function MentorDashboard({
       materialDesc || 'Bahan ajar tambahan yang diterbitkan oleh Apoteker Rahmato.',
       materialLength || (materialType === 'pdf' ? '12 Halaman' : '20 Menit'),
       materialContent,
-      materialType === 'video' ? extractYouTubeId(materialYoutubeId) : undefined
+      materialType === 'video' ? extractYouTubeId(materialYoutubeId) : undefined,
+      materialType === 'pdf' ? materialDocUrl.trim() || undefined : undefined
     );
 
     setMaterialTitle('');
@@ -258,6 +265,7 @@ export default function MentorDashboard({
     setMaterialLength('');
     setMaterialContent('');
     setMaterialYoutubeId('');
+    setMaterialDocUrl('');
     setMaterialSuccess(true);
     setMatVersion((v) => v + 1);
     setTimeout(() => setMaterialSuccess(false), 3000);
@@ -1054,6 +1062,20 @@ export default function MentorDashboard({
                   </div>
                 )}
 
+                {materialType === 'pdf' && (
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-slate-400 font-bold uppercase block">Link Dokumen / PDF (opsional)</label>
+                    <input
+                      type="text"
+                      value={materialDocUrl}
+                      onChange={(e) => setMaterialDocUrl(e.target.value)}
+                      placeholder="https://drive.google.com/... atau URL PDF"
+                      className="w-full text-xs p-2.5 bg-[#0F1115] border border-white/10 rounded text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                    />
+                    <p className="text-[10px] text-slate-500">Bila diisi, murid bisa membuka/unduh dokumen langsung dari link ini.</p>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-[10px] text-slate-400 font-bold uppercase block">Deskripsi Singkat</label>
@@ -1159,6 +1181,15 @@ export default function MentorDashboard({
                                           value={editMaterialDraft.youtubeId}
                                           onChange={(e) => setEditMaterialDraft((p) => ({ ...p, youtubeId: e.target.value }))}
                                           placeholder="Link / ID Video YouTube (ganti video di sini)"
+                                          className="w-full text-xs p-2 bg-[#16181D] border border-emerald-500/30 rounded text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                                        />
+                                      )}
+                                      {editMaterialDraft.type === 'pdf' && (
+                                        <input
+                                          type="text"
+                                          value={editMaterialDraft.documentUrl}
+                                          onChange={(e) => setEditMaterialDraft((p) => ({ ...p, documentUrl: e.target.value }))}
+                                          placeholder="Link Dokumen / PDF (ganti link di sini)"
                                           className="w-full text-xs p-2 bg-[#16181D] border border-emerald-500/30 rounded text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                                         />
                                       )}

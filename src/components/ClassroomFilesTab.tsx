@@ -100,10 +100,14 @@ Tabel interaksi klinis kritis yang memerlukan monitoring ketat atau penggantian 
     size: m.durationOrPages.includes('Halaman') ? `${parseInt(m.durationOrPages) * 45} KB` : '1.5 MB',
     description: m.description,
     pages: m.durationOrPages,
-    content: m.content
+    content: m.content,
+    url: m.documentUrl as string | undefined,
   }));
 
-  const finalFiles = [...materialsPdfs, ...defaultPdfs];
+  const finalFiles = [
+    ...materialsPdfs,
+    ...defaultPdfs.map(f => ({ ...f, url: undefined as string | undefined })),
+  ];
   const activeReadFile = finalFiles.find(f => f.id === readerFileId);
 
   const startDownload = (fileId: string) => {
@@ -180,7 +184,11 @@ Tabel interaksi klinis kritis yang memerlukan monitoring ketat atau penggantian 
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => {
-                        setReaderFileId(file.id);
+                        if (file.url) {
+                          window.open(file.url, '_blank', 'noopener');
+                        } else {
+                          setReaderFileId(file.id);
+                        }
                         onMaterialAccess(file.id);
                       }}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
@@ -190,11 +198,16 @@ Tabel interaksi klinis kritis yang memerlukan monitoring ketat atau penggantian 
                       }`}
                     >
                       <Eye className="h-3.5 w-3.5" />
-                      <span>Baca Online</span>
+                      <span>{file.url ? 'Buka Dokumen' : 'Baca Online'}</span>
                     </button>
 
                     <button
                       onClick={() => {
+                        if (file.url) {
+                          window.open(file.url, '_blank', 'noopener');
+                          onMaterialAccess(file.id);
+                          return;
+                        }
                         startDownload(file.id);
                         onMaterialAccess(file.id);
                       }}

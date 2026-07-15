@@ -40,6 +40,7 @@ export interface Material {
   content: string; // Markdown or detailed text content
   videoUrl?: string; // Mock video embed path or identifier
   youtubeId?: string; // YouTube Video ID
+  documentUrl?: string; // Link dokumen/PDF eksternal (mis. Google Drive) untuk materi PDF
 }
 
 export interface QuizQuestion {

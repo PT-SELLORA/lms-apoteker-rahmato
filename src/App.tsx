@@ -248,7 +248,8 @@ export default function App() {
     description: string,
     durationOrPages: string,
     content: string,
-    youtubeId?: string
+    youtubeId?: string,
+    documentUrl?: string
   ) => {
     const newMat: Material = {
       id: `custom-${Date.now()}`,
@@ -259,6 +260,7 @@ export default function App() {
       durationOrPages,
       content,
       youtubeId: type === 'video' ? (youtubeId || undefined) : undefined,
+      documentUrl: type === 'pdf' ? (documentUrl || undefined) : undefined,
     };
 
     const newCustomMatList = [newMat, ...customMaterials];
