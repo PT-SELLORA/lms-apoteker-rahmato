@@ -14,9 +14,16 @@ import {
   Trash2,
   Check,
   X,
+  Plus,
 } from 'lucide-react';
 import { Class, User, Transaction, QuizAttempt, ForumPost, Material } from '../types';
-import { GENERATIONS } from '../data/coursesData';
+import {
+  GENERATIONS,
+  getEffectiveMaterials,
+  MATERIAL_OVERRIDES_KEY,
+  MATERIAL_DELETED_KEY,
+  CUSTOM_MATERIALS_KEY,
+} from '../data/coursesData';
 
 interface MentorDashboardProps {
   classes: Class[];
@@ -24,12 +31,13 @@ interface MentorDashboardProps {
   transactions: Transaction[];
   attempts: QuizAttempt[];
   forumPosts: ForumPost[];
-  customMaterials: Material[];
   onAddMaterial: (classId: string, title: string, type: 'video' | 'pdf', description: string, durationOrPages: string, content: string) => void;
   onAddStudent: (name: string, email: string, profession: User['profession'], initialClassId?: string) => void;
   onEditStudent: (userId: string, updates: { name: string; email: string; profession: User['profession'] }) => void;
-  onEditMaterial: (materialId: string, updates: { title: string; description: string; durationOrPages: string; content: string }) => void;
-  onDeleteMaterial: (materialId: string) => void;
+  onDeleteStudent: (userId: string) => void;
+  onEditClass: (classId: string, updates: { name: string; description: string; price: number; category: Class['category'] }) => void;
+  onDeleteClass: (classId: string) => void;
+  onAddClass: (generationId: string, data: { name: string; description: string; price: number; category: Class['category'] }) => void;
   onAddForumReply: (postId: string, content: string) => void;
 }
 
@@ -39,12 +47,13 @@ export default function MentorDashboard({
   transactions,
   attempts,
   forumPosts,
-  customMaterials,
   onAddMaterial,
   onAddStudent,
   onEditStudent,
-  onEditMaterial,
-  onDeleteMaterial,
+  onDeleteStudent,
+  onEditClass,
+  onDeleteClass,
+  onAddClass,
   onAddForumReply,
 }: MentorDashboardProps) {
   // Navigation State inside Admin
@@ -92,6 +101,33 @@ export default function MentorDashboard({
     durationOrPages: string;
     content: string;
   }>({ title: '', description: '', durationOrPages: '', content: '' });
+  // Counter untuk memaksa hitung-ulang materi efektif setelah edit/hapus/tambah.
+  const [matVersion, setMatVersion] = useState(0);
+
+  // Edit / tambah kelas (generasi) state
+  const [editClassId, setEditClassId] = useState<string | null>(null);
+  const [editClassDraft, setEditClassDraft] = useState<{
+    name: string;
+    description: string;
+    price: number;
+    category: Class['category'];
+  }>({ name: '', description: '', price: 0, category: 'REGULER' });
+  const [showAddClass, setShowAddClass] = useState(false);
+  const [addClassDraft, setAddClassDraft] = useState<{
+    name: string;
+    description: string;
+    price: number;
+    category: Class['category'];
+  }>({ name: '', description: '', price: 450000, category: 'REGULER' });
+
+  const readLS = <T,>(key: string, fb: T): T => {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? (JSON.parse(raw) as T) : fb;
+    } catch {
+      return fb;
+    }
+  };
 
   const startEditStudent = (student: User) => {
     setEditStudentId(student.id);
@@ -118,10 +154,47 @@ export default function MentorDashboard({
     });
   };
 
+  // Simpan edit materi (default maupun rilisan) sebagai override di localStorage.
   const saveEditMaterial = () => {
     if (!editMaterialId || !editMaterialDraft.title.trim()) return;
-    onEditMaterial(editMaterialId, editMaterialDraft);
+    const overrides = readLS<Record<string, Partial<Material>>>(MATERIAL_OVERRIDES_KEY, {});
+    overrides[editMaterialId] = { ...(overrides[editMaterialId] ?? {}), ...editMaterialDraft };
+    localStorage.setItem(MATERIAL_OVERRIDES_KEY, JSON.stringify(overrides));
     setEditMaterialId(null);
+    setMatVersion((v) => v + 1);
+  };
+
+  // Hapus materi (tandai terhapus + bersihkan dari daftar rilisan bila ada).
+  const deleteMaterial = (id: string) => {
+    const deleted = readLS<string[]>(MATERIAL_DELETED_KEY, []);
+    if (!deleted.includes(id)) deleted.push(id);
+    localStorage.setItem(MATERIAL_DELETED_KEY, JSON.stringify(deleted));
+    const customs = readLS<Material[]>(CUSTOM_MATERIALS_KEY, []).filter((m) => m.id !== id);
+    localStorage.setItem(CUSTOM_MATERIALS_KEY, JSON.stringify(customs));
+    setMatVersion((v) => v + 1);
+  };
+
+  const startEditClass = (cls: Class) => {
+    setEditClassId(cls.id);
+    setEditClassDraft({
+      name: cls.name,
+      description: cls.description,
+      price: cls.price,
+      category: cls.category,
+    });
+  };
+
+  const saveEditClass = () => {
+    if (!editClassId || !editClassDraft.name.trim()) return;
+    onEditClass(editClassId, editClassDraft);
+    setEditClassId(null);
+  };
+
+  const submitAddClass = () => {
+    if (!addClassDraft.name.trim()) return;
+    onAddClass(selectedGenId, addClassDraft);
+    setAddClassDraft({ name: '', description: '', price: 450000, category: 'REGULER' });
+    setShowAddClass(false);
   };
 
   // Calculations
@@ -163,6 +236,7 @@ export default function MentorDashboard({
     setMaterialLength('');
     setMaterialContent('');
     setMaterialSuccess(true);
+    setMatVersion((v) => v + 1);
     setTimeout(() => setMaterialSuccess(false), 3000);
   };
 
@@ -394,12 +468,129 @@ export default function MentorDashboard({
               </div>
             </div>
 
-            {/* Displaying the 6 classes for the selected generation */}
+            {/* Toolbar tambah kelas */}
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowAddClass((s) => !s)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs transition cursor-pointer shadow-lg shadow-emerald-950/40"
+              >
+                <Plus className="h-4 w-4" /> Tambah Kelas
+              </button>
+            </div>
+
+            {showAddClass && (
+              <div className="bg-[#16181D] border border-emerald-500/20 rounded-2xl p-5 shadow-lg space-y-3">
+                <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
+                  Tambah Kelas Baru ke {GENERATIONS.find((g) => g.id === selectedGenId)?.name}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    value={addClassDraft.name}
+                    onChange={(e) => setAddClassDraft((p) => ({ ...p, name: e.target.value }))}
+                    placeholder="Nama kelas (mis. REGULER D)"
+                    className="w-full text-xs p-2.5 bg-[#0F1115] border border-white/10 rounded text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                  />
+                  <select
+                    value={addClassDraft.category}
+                    onChange={(e) => setAddClassDraft((p) => ({ ...p, category: e.target.value as Class['category'] }))}
+                    className="w-full text-xs p-2.5 bg-[#0F1115] border border-white/10 rounded text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                  >
+                    <option value="REGULER" className="bg-[#16181D]">REGULER</option>
+                    <option value="ADVANCE" className="bg-[#16181D]">ADVANCE</option>
+                  </select>
+                  <input
+                    type="number"
+                    value={addClassDraft.price}
+                    onChange={(e) => setAddClassDraft((p) => ({ ...p, price: Number(e.target.value) }))}
+                    placeholder="Harga (Rp)"
+                    className="w-full text-xs p-2.5 bg-[#0F1115] border border-white/10 rounded text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    value={addClassDraft.description}
+                    onChange={(e) => setAddClassDraft((p) => ({ ...p, description: e.target.value }))}
+                    placeholder="Deskripsi singkat"
+                    className="w-full text-xs p-2.5 bg-[#0F1115] border border-white/10 rounded text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={submitAddClass}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-[11px] transition cursor-pointer"
+                  >
+                    <Check className="h-3.5 w-3.5" /> Tambah
+                  </button>
+                  <button
+                    onClick={() => setShowAddClass(false)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 rounded-lg font-bold text-[11px] transition cursor-pointer"
+                  >
+                    <X className="h-3.5 w-3.5" /> Batal
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Displaying the classes for the selected generation */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {classes
                 .filter((c) => c.generationId === selectedGenId)
                 .map((cls) => {
                   const isAdvance = cls.category === 'ADVANCE';
+                  const isEditing = editClassId === cls.id;
+                  if (isEditing) {
+                    return (
+                      <div
+                        key={cls.id}
+                        className="bg-[#16181D] border border-emerald-500/30 rounded-2xl p-5 shadow-lg space-y-3"
+                      >
+                        <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Edit Kelas</div>
+                        <input
+                          type="text"
+                          value={editClassDraft.name}
+                          onChange={(e) => setEditClassDraft((p) => ({ ...p, name: e.target.value }))}
+                          placeholder="Nama kelas"
+                          className="w-full text-xs p-2.5 bg-[#0F1115] border border-white/10 rounded text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                        />
+                        <select
+                          value={editClassDraft.category}
+                          onChange={(e) => setEditClassDraft((p) => ({ ...p, category: e.target.value as Class['category'] }))}
+                          className="w-full text-xs p-2.5 bg-[#0F1115] border border-white/10 rounded text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                        >
+                          <option value="REGULER" className="bg-[#16181D]">REGULER</option>
+                          <option value="ADVANCE" className="bg-[#16181D]">ADVANCE</option>
+                        </select>
+                        <input
+                          type="number"
+                          value={editClassDraft.price}
+                          onChange={(e) => setEditClassDraft((p) => ({ ...p, price: Number(e.target.value) }))}
+                          placeholder="Harga (Rp)"
+                          className="w-full text-xs p-2.5 bg-[#0F1115] border border-white/10 rounded text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                        />
+                        <textarea
+                          rows={3}
+                          value={editClassDraft.description}
+                          onChange={(e) => setEditClassDraft((p) => ({ ...p, description: e.target.value }))}
+                          placeholder="Deskripsi"
+                          className="w-full text-xs p-2.5 bg-[#0F1115] border border-white/10 rounded text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                        />
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={saveEditClass}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-[11px] transition cursor-pointer"
+                          >
+                            <Check className="h-3.5 w-3.5" /> Simpan
+                          </button>
+                          <button
+                            onClick={() => setEditClassId(null)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 rounded-lg font-bold text-[11px] transition cursor-pointer"
+                          >
+                            <X className="h-3.5 w-3.5" /> Batal
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
                   return (
                     <div
                       key={cls.id}
@@ -408,13 +599,30 @@ export default function MentorDashboard({
                       <div>
                         <div className="flex justify-between items-center mb-3">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wide border ${
-                            isAdvance 
-                              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' 
+                            isAdvance
+                              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                               : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                           }`}>
                             {cls.category}
                           </span>
-                          <span className="text-xs text-slate-400 font-bold">Aktif</span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => startEditClass(cls)}
+                              className="p-1.5 bg-white/5 hover:bg-emerald-600 hover:text-white border border-white/10 text-slate-300 rounded-lg transition cursor-pointer"
+                              title="Edit kelas"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`Hapus kelas "${cls.name}"?`)) onDeleteClass(cls.id);
+                              }}
+                              className="p-1.5 bg-white/5 hover:bg-red-600 hover:text-white border border-white/10 text-slate-300 rounded-lg transition cursor-pointer"
+                              title="Hapus kelas"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
                         </div>
                         <h3 className="text-lg font-black text-white leading-tight">{cls.name}</h3>
                         <p className="text-slate-400 text-xs mt-2 leading-relaxed">{cls.description}</p>
@@ -661,12 +869,22 @@ export default function MentorDashboard({
                             </div>
                           </td>
                           <td className="p-4">
-                            <button
-                              onClick={() => startEditStudent(student)}
-                              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/5 hover:bg-emerald-600 hover:text-white border border-white/10 text-slate-300 rounded-lg font-bold text-[10px] transition cursor-pointer"
-                            >
-                              <Pencil className="h-3 w-3" /> Edit
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => startEditStudent(student)}
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/5 hover:bg-emerald-600 hover:text-white border border-white/10 text-slate-300 rounded-lg font-bold text-[10px] transition cursor-pointer"
+                              >
+                                <Pencil className="h-3 w-3" /> Edit
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Hapus mahasiswa "${student.name}"?`)) onDeleteStudent(student.id);
+                                }}
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/5 hover:bg-red-600 hover:text-white border border-white/10 text-slate-300 rounded-lg font-bold text-[10px] transition cursor-pointer"
+                              >
+                                <Trash2 className="h-3 w-3" /> Hapus
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -850,11 +1068,11 @@ export default function MentorDashboard({
                 <h3 className="font-bold text-white">Kurikulum Kelas Terdaftar (Simulasi Realtime)</h3>
                 <p className="text-xs text-slate-400">Rincian modul ajar aktif. Modul yang Anda tambahkan melalui formulir di kiri akan langsung bertambah dan muncul pada daftar di bawah ini!</p>
 
-                <div className="divide-y divide-white/5">
+                <div key={`mat-${matVersion}`} className="divide-y divide-white/5">
                   {classes
                     .filter((c) => c.generationId === 'gen6')
                     .map((cls) => {
-                      const clsMaterials = customMaterials.filter((m) => m.classId === cls.id);
+                      const clsMaterials = getEffectiveMaterials(cls.id, cls.name);
                       return (
                         <div key={cls.id} className="py-4 first:pt-0 last:pb-0">
                           <div className="flex justify-between items-center">
@@ -863,16 +1081,11 @@ export default function MentorDashboard({
                           </div>
                           <div className="flex items-center gap-2 mt-2">
                             <span className="px-2 py-0.5 bg-white/5 text-slate-300 border border-white/5 rounded text-[9px] font-bold flex items-center gap-1">
-                              <BookOpen className="h-3 w-3" /> {cls.materialsCount} Modul
+                              <BookOpen className="h-3 w-3" /> {clsMaterials.length} Modul
                             </span>
-                            {clsMaterials.length > 0 && (
-                              <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded text-[9px] font-bold border border-emerald-500/20">
-                                {clsMaterials.length} Rilisan Baru
-                              </span>
-                            )}
                           </div>
 
-                          {/* Daftar materi yang dirilis dosen — bisa diedit/dihapus */}
+                          {/* Daftar SEMUA materi (default + rilisan) — bisa diedit/dihapus */}
                           {clsMaterials.length > 0 && (
                             <div className="mt-3 space-y-2">
                               {clsMaterials.map((mat) => {
@@ -932,7 +1145,7 @@ export default function MentorDashboard({
                                     <div className="min-w-0">
                                       <div className="text-xs font-bold text-white truncate">{mat.title}</div>
                                       <div className="text-[10px] text-slate-400 truncate">
-                                        {mat.type === 'video' ? 'Video' : 'PDF'} · {mat.durationOrPages}
+                                        {mat.type === 'video' ? 'Video' : mat.type === 'quiz' ? 'Kuis' : 'PDF'} · {mat.durationOrPages}
                                       </div>
                                     </div>
                                     <div className="flex items-center gap-1 shrink-0">
@@ -945,7 +1158,7 @@ export default function MentorDashboard({
                                       </button>
                                       <button
                                         onClick={() => {
-                                          if (window.confirm(`Hapus materi "${mat.title}"?`)) onDeleteMaterial(mat.id);
+                                          if (window.confirm(`Hapus materi "${mat.title}"?`)) deleteMaterial(mat.id);
                                         }}
                                         className="p-1.5 bg-white/5 hover:bg-red-600 hover:text-white border border-white/10 text-slate-300 rounded-lg transition cursor-pointer"
                                         title="Hapus materi"

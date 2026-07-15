@@ -21,6 +21,7 @@ import {
   isAdminSession,
   listRoles,
   upsertRole,
+  ensureUserRecorded,
 } from '../../api/lib/roles.server';
 
 function redirect(res: ServerResponse, url: string, status = 303) {
@@ -69,6 +70,8 @@ async function handleCallback(req: IncomingMessage, res: ServerResponse) {
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
     });
+    // Catat pengguna ke user_roles (default student) supaya muncul di Kelola Peran.
+    await ensureUserRecorded(claims.email as string | undefined);
     // Peran = sumber kebenaran DB LMS (user_roles), bukan klaim SSO.
     const realm = await resolveRealm({
       email: claims.email as string | undefined,

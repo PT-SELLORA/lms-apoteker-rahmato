@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { CheckCircle2, XCircle, X } from 'lucide-react';
-import { getOrInitState, saveState, MENTOR_RAHMATO } from './data/coursesData';
+import { getOrInitState, saveState, MENTOR_RAHMATO, GENERATIONS } from './data/coursesData';
 import { loadClasses } from './lib/api';
 import { Class, User, Transaction, QuizAttempt, ForumPost, Material, Notification, DirectMessage } from './types';
 import LandingPage from './components/LandingPage';
@@ -26,6 +26,39 @@ const MOCK_MESSAGES: DirectMessage[] = [
   { id: 'm2', fromId: 'current', toId: 'mentor-001', content: 'Terima kasih Apoteker Rahmato! Saya sudah mulai materi pertama.', createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), read: true },
   { id: 'm3', fromId: 'mentor-001', toId: 'current', content: 'Bagus sekali! Jika ada pertanyaan tentang kalkulasi dosis, langsung tanya di sini atau di forum kelas.', createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(), read: false },
 ];
+
+// --- Override lokal (mock) untuk kelas/generasi. Diedit/dihapus/ditambah lewat
+// panel dosen lalu disimpan di localStorage, kemudian ditumpuk di atas data
+// kelas asli dari Supabase supaya perubahan tetap ada setelah reload. ---
+const CLASS_OVERRIDES_KEY = 'lms_class_overrides';
+const CLASS_DELETED_KEY = 'lms_deleted_classes';
+const CLASS_ADDED_KEY = 'lms_added_classes';
+
+function readJSON<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function applyClassLocalEdits(base: Class[]): Class[] {
+  const overrides = readJSON<Record<string, Partial<Class>>>(CLASS_OVERRIDES_KEY, {});
+  const deleted = readJSON<string[]>(CLASS_DELETED_KEY, []);
+  const added = readJSON<Class[]>(CLASS_ADDED_KEY, []);
+  const merged = base
+    .filter((c) => !deleted.includes(c.id))
+    .map((c) => (overrides[c.id] ? { ...c, ...overrides[c.id] } : c));
+  added
+    .filter((c) => !deleted.includes(c.id))
+    .forEach((c) => {
+      if (!merged.some((m) => m.id === c.id)) {
+        merged.push(overrides[c.id] ? { ...c, ...overrides[c.id] } : c);
+      }
+    });
+  return merged;
+}
 
 // Guard component — redirects to SSO login if not authenticated
 function RequireAuth({ children, requiredRealm }: { children: React.ReactNode; requiredRealm?: string | string[] }) {
@@ -177,12 +210,13 @@ export default function App() {
       setCustomMaterials(JSON.parse(storedCustomMat));
     }
 
-    // Load real class catalog from Supabase (public read — no auth needed)
+    // Load real class catalog from Supabase (public read — no auth needed).
+    // Override lokal (edit/hapus/tambah generasi via panel dosen) ditumpuk di atasnya.
     loadClasses()
-      .then(setClasses)
+      .then((cls) => setClasses(applyClassLocalEdits(cls)))
       .catch(() => {
         // Fallback to localStorage seed data if Supabase is unreachable
-        setClasses(data.classes);
+        setClasses(applyClassLocalEdits(data.classes));
       });
   }, []);
 
@@ -294,34 +328,59 @@ export default function App() {
     triggerSaveState(classes, updated, forumPosts, transactions, attempts);
   };
 
-  // 3c. EDIT MATERIAL (Dosen mengubah materi yang sudah dirilis)
-  const handleEditMaterial = (
-    materialId: string,
-    updates: { title: string; description: string; durationOrPages: string; content: string }
-  ) => {
-    const updatedList = customMaterials.map((m) =>
-      m.id === materialId ? { ...m, ...updates } : m
-    );
-    setCustomMaterials(updatedList);
-    localStorage.setItem('lms_custom_materials', JSON.stringify(updatedList));
+  // 3c. DELETE STUDENT (Dosen menghapus mahasiswa)
+  const handleDeleteStudent = (userId: string) => {
+    const updated = students.filter((s) => s.id !== userId);
+    setStudents(updated);
+    triggerSaveState(classes, updated, forumPosts, transactions, attempts);
   };
 
-  // 3d. DELETE MATERIAL (Dosen menghapus materi yang dirilis)
-  const handleDeleteMaterial = (materialId: string) => {
-    const mat = customMaterials.find((m) => m.id === materialId);
-    const updatedList = customMaterials.filter((m) => m.id !== materialId);
-    setCustomMaterials(updatedList);
-    localStorage.setItem('lms_custom_materials', JSON.stringify(updatedList));
+  // 3d. EDIT CLASS / GENERASI (Dosen mengubah kelas — override lokal)
+  const handleEditClass = (
+    classId: string,
+    updates: { name: string; description: string; price: number; category: Class['category'] }
+  ) => {
+    const overrides = readJSON<Record<string, Partial<Class>>>(CLASS_OVERRIDES_KEY, {});
+    overrides[classId] = { ...(overrides[classId] ?? {}), ...updates };
+    localStorage.setItem(CLASS_OVERRIDES_KEY, JSON.stringify(overrides));
+    setClasses((prev) => prev.map((c) => (c.id === classId ? { ...c, ...updates } : c)));
+  };
 
-    if (mat) {
-      const updatedClasses = classes.map((c) =>
-        c.id === mat.classId
-          ? { ...c, materialsCount: Math.max(0, c.materialsCount - 1) }
-          : c
-      );
-      setClasses(updatedClasses);
-      triggerSaveState(updatedClasses, students, forumPosts, transactions, attempts);
-    }
+  // 3e. DELETE CLASS / GENERASI (Dosen menghapus kelas — override lokal)
+  const handleDeleteClass = (classId: string) => {
+    const deleted = readJSON<string[]>(CLASS_DELETED_KEY, []);
+    if (!deleted.includes(classId)) deleted.push(classId);
+    localStorage.setItem(CLASS_DELETED_KEY, JSON.stringify(deleted));
+    // Bila kelas ini tadinya kelas tambahan lokal, bersihkan juga dari daftar tambah.
+    const added = readJSON<Class[]>(CLASS_ADDED_KEY, []).filter((c) => c.id !== classId);
+    localStorage.setItem(CLASS_ADDED_KEY, JSON.stringify(added));
+    setClasses((prev) => prev.filter((c) => c.id !== classId));
+  };
+
+  // 3f. ADD CLASS / GENERASI (Dosen menambah kelas baru ke sebuah generasi)
+  const handleAddClass = (
+    generationId: string,
+    data: { name: string; description: string; price: number; category: Class['category'] }
+  ) => {
+    const generationName =
+      classes.find((c) => c.generationId === generationId)?.generationName ??
+      GENERATIONS.find((g) => g.id === generationId)?.name ??
+      generationId;
+    const newClass: Class = {
+      id: `${generationId}-custom-${Date.now()}`,
+      generationId,
+      generationName,
+      name: data.name,
+      category: data.category,
+      price: data.price,
+      description: data.description,
+      materialsCount: 0,
+      studentsCount: 0,
+    };
+    const added = readJSON<Class[]>(CLASS_ADDED_KEY, []);
+    added.push(newClass);
+    localStorage.setItem(CLASS_ADDED_KEY, JSON.stringify(added));
+    setClasses((prev) => [...prev, newClass]);
   };
 
   // 4. ADD DISCUSSION FORUM TOPIC (Student posting)
@@ -535,12 +594,13 @@ export default function App() {
               transactions={transactions}
               attempts={attempts}
               forumPosts={forumPosts}
-              customMaterials={customMaterials}
               onAddMaterial={handleAddMaterial}
               onAddStudent={handleAddStudent}
               onEditStudent={handleEditStudent}
-              onEditMaterial={handleEditMaterial}
-              onDeleteMaterial={handleDeleteMaterial}
+              onDeleteStudent={handleDeleteStudent}
+              onEditClass={handleEditClass}
+              onDeleteClass={handleDeleteClass}
+              onAddClass={handleAddClass}
               onAddForumReply={handleAddForumReply}
             />
           </RequireAuth>

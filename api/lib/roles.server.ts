@@ -103,6 +103,31 @@ export async function listRoles(): Promise<UserRoleRow[]> {
   return (await resp.json()) as UserRoleRow[];
 }
 
+/**
+ * Catat pengguna saat login SSO. Insert baris (email, 'student') HANYA bila
+ * belum ada — peran yang sudah diset (admin/mentor) tidak akan tertimpa karena
+ * memakai `resolution=ignore-duplicates`. Tujuannya: setiap orang yang pernah
+ * login otomatis muncul di panel Kelola Peran tanpa perlu diketik manual.
+ * Aman dipanggil best-effort; kegagalan tidak boleh menggagalkan login.
+ */
+export async function ensureUserRecorded(email?: string): Promise<void> {
+  if (!email || !configured()) return;
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) return;
+  const url = `${SUPABASE_URL}/rest/v1/user_roles?on_conflict=email`;
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: restHeaders({
+        Prefer: 'resolution=ignore-duplicates,return=minimal',
+      }),
+      body: JSON.stringify({ email: normalized, role: 'student' }),
+    });
+  } catch {
+    // best-effort — jangan ganggu alur login
+  }
+}
+
 /** Upsert peran untuk sebuah email (insert bila baru, update bila sudah ada). */
 export async function upsertRole(email: string, role: AppRole): Promise<UserRoleRow> {
   if (!configured()) throw new Error('Supabase belum dikonfigurasi di server');

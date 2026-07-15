@@ -30,8 +30,8 @@ import {
   Loader2,
   AlertCircle
 } from 'lucide-react';
-import { Class, Material, User, Transaction, QuizAttempt, ForumPost, Notification, Schedule, DirectMessage } from '../types';
-import { getMaterialsForClass, QUIZ_TEMPLATES } from '../data/coursesData';
+import { Class, User, Transaction, QuizAttempt, ForumPost, Notification, Schedule, DirectMessage } from '../types';
+import { getMaterialsForClass, getEffectiveMaterials, QUIZ_TEMPLATES } from '../data/coursesData';
 import { createXenditInvoice } from '../lib/api';
 import ClassroomVideoTab from './ClassroomVideoTab';
 import ClassroomFilesTab from './ClassroomFilesTab';
@@ -156,28 +156,11 @@ export default function StudentDashboard({
   // Retrieve current active class object
   const activeClass = classes.find((c) => c.id === selectedClassId);
 
-  // Retrieve materials including custom ones from localStorage
+  // Materi efektif: modul default + rilisan dosen, sudah menerapkan edit/hapus
+  // yang dilakukan dosen (disimpan di localStorage).
   const materials = React.useMemo(() => {
     if (!selectedClassId || !activeClass) return [];
-    const base = getMaterialsForClass(selectedClassId, activeClass.name);
-    try {
-      const stored = localStorage.getItem('lms_custom_materials');
-      if (stored) {
-        const parsed = JSON.parse(stored) as Material[];
-        const classCustoms = parsed.filter((m) => m.classId === selectedClassId);
-        // Ensure no duplicates by ID
-        const combined = [...base];
-        classCustoms.forEach(cMat => {
-          if (!combined.some(bMat => bMat.id === cMat.id)) {
-            combined.push(cMat);
-          }
-        });
-        return combined;
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    return base;
+    return getEffectiveMaterials(selectedClassId, activeClass.name);
   }, [selectedClassId, activeClass]);
 
   // Selected class quiz template (dipakai ClassroomQuizTab)

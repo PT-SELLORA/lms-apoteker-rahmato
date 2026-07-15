@@ -211,6 +211,48 @@ export const getMaterialsForClass = (classId: string, className: string): Materi
   ];
 };
 
+// LocalStorage keys untuk CRUD materi (mock): dosen bisa edit/hapus modul
+// default maupun modul yang dirilis. Perubahan disimpan sebagai override &
+// daftar-hapus, lalu diterapkan di sini agar konsisten di dashboard dosen & murid.
+export const MATERIAL_OVERRIDES_KEY = 'lms_material_overrides';
+export const MATERIAL_DELETED_KEY = 'lms_deleted_materials';
+export const CUSTOM_MATERIALS_KEY = 'lms_custom_materials';
+
+function readLocalJSON<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Materi efektif untuk sebuah kelas = modul default (template) + modul rilisan
+ * (custom), setelah menerapkan override (edit) dan daftar-hapus. Dipakai baik di
+ * dashboard dosen maupun murid supaya perubahan langsung tercermin di keduanya.
+ */
+export const getEffectiveMaterials = (classId: string, className: string): Material[] => {
+  const base = getMaterialsForClass(classId, className);
+  const overrides = readLocalJSON<Record<string, Partial<Material>>>(MATERIAL_OVERRIDES_KEY, {});
+  const deleted = readLocalJSON<string[]>(MATERIAL_DELETED_KEY, []);
+  const customs = readLocalJSON<Material[]>(CUSTOM_MATERIALS_KEY, []);
+
+  const merged = base
+    .filter((m) => !deleted.includes(m.id))
+    .map((m) => (overrides[m.id] ? { ...m, ...overrides[m.id] } : m));
+
+  customs
+    .filter((m) => m.classId === classId && !deleted.includes(m.id))
+    .forEach((cMat) => {
+      if (!merged.some((m) => m.id === cMat.id)) {
+        merged.push(overrides[cMat.id] ? { ...cMat, ...overrides[cMat.id] } : cMat);
+      }
+    });
+
+  return merged;
+};
+
 export const QUIZ_TEMPLATES: Record<string, Quiz> = {
   reguler: {
     id: 'quiz-reguler',
