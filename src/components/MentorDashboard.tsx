@@ -9,9 +9,13 @@ import {
   MessageSquare,
   BookOpen,
   Award,
-  Send
+  Send,
+  Pencil,
+  Trash2,
+  Check,
+  X,
 } from 'lucide-react';
-import { Class, User, Transaction, QuizAttempt, ForumPost } from '../types';
+import { Class, User, Transaction, QuizAttempt, ForumPost, Material } from '../types';
 import { GENERATIONS } from '../data/coursesData';
 
 interface MentorDashboardProps {
@@ -20,8 +24,12 @@ interface MentorDashboardProps {
   transactions: Transaction[];
   attempts: QuizAttempt[];
   forumPosts: ForumPost[];
+  customMaterials: Material[];
   onAddMaterial: (classId: string, title: string, type: 'video' | 'pdf', description: string, durationOrPages: string, content: string) => void;
   onAddStudent: (name: string, email: string, profession: User['profession'], initialClassId?: string) => void;
+  onEditStudent: (userId: string, updates: { name: string; email: string; profession: User['profession'] }) => void;
+  onEditMaterial: (materialId: string, updates: { title: string; description: string; durationOrPages: string; content: string }) => void;
+  onDeleteMaterial: (materialId: string) => void;
   onAddForumReply: (postId: string, content: string) => void;
 }
 
@@ -31,8 +39,12 @@ export default function MentorDashboard({
   transactions,
   attempts,
   forumPosts,
+  customMaterials,
   onAddMaterial,
   onAddStudent,
+  onEditStudent,
+  onEditMaterial,
+  onDeleteMaterial,
   onAddForumReply,
 }: MentorDashboardProps) {
   // Navigation State inside Admin
@@ -63,6 +75,54 @@ export default function MentorDashboard({
 
   // Forum state inside Admin
   const [replyContent, setReplyContent] = useState<Record<string, string>>({});
+
+  // Edit student state
+  const [editStudentId, setEditStudentId] = useState<string | null>(null);
+  const [editStudentDraft, setEditStudentDraft] = useState<{
+    name: string;
+    email: string;
+    profession: User['profession'];
+  }>({ name: '', email: '', profession: 'Apoteker' });
+
+  // Edit material state
+  const [editMaterialId, setEditMaterialId] = useState<string | null>(null);
+  const [editMaterialDraft, setEditMaterialDraft] = useState<{
+    title: string;
+    description: string;
+    durationOrPages: string;
+    content: string;
+  }>({ title: '', description: '', durationOrPages: '', content: '' });
+
+  const startEditStudent = (student: User) => {
+    setEditStudentId(student.id);
+    setEditStudentDraft({
+      name: student.name,
+      email: student.email,
+      profession: student.profession,
+    });
+  };
+
+  const saveEditStudent = () => {
+    if (!editStudentId || !editStudentDraft.name.trim() || !editStudentDraft.email.trim()) return;
+    onEditStudent(editStudentId, editStudentDraft);
+    setEditStudentId(null);
+  };
+
+  const startEditMaterial = (mat: Material) => {
+    setEditMaterialId(mat.id);
+    setEditMaterialDraft({
+      title: mat.title,
+      description: mat.description,
+      durationOrPages: mat.durationOrPages,
+      content: mat.content,
+    });
+  };
+
+  const saveEditMaterial = () => {
+    if (!editMaterialId || !editMaterialDraft.title.trim()) return;
+    onEditMaterial(editMaterialId, editMaterialDraft);
+    setEditMaterialId(null);
+  };
 
   // Calculations
   const totalRevenue = transactions
@@ -504,43 +564,113 @@ export default function MentorDashboard({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {filteredStudents.map((student) => (
-                      <tr key={student.id} className="hover:bg-white/5 transition-colors">
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
-                            <img src={student.avatar} alt={student.name} className="w-8 h-8 rounded-full object-cover shrink-0" />
-                            <div>
-                              <div className="font-bold text-white">{student.name}</div>
-                              <div className="text-[10px] text-slate-400">{student.email}</div>
+                    {filteredStudents.map((student) => {
+                      const isEditing = editStudentId === student.id;
+                      if (isEditing) {
+                        return (
+                          <tr key={student.id} className="bg-[#0F1115]">
+                            <td colSpan={4} className="p-4">
+                              <div className="space-y-3">
+                                <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
+                                  Edit Data Mahasiswa
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                  <div className="space-y-1">
+                                    <label className="text-[10px] text-slate-400 font-bold uppercase block">Nama Lengkap</label>
+                                    <input
+                                      type="text"
+                                      value={editStudentDraft.name}
+                                      onChange={(e) => setEditStudentDraft((p) => ({ ...p, name: e.target.value }))}
+                                      className="w-full text-xs p-2.5 bg-[#16181D] border border-white/10 rounded text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[10px] text-slate-400 font-bold uppercase block">Email Aktif</label>
+                                    <input
+                                      type="email"
+                                      value={editStudentDraft.email}
+                                      onChange={(e) => setEditStudentDraft((p) => ({ ...p, email: e.target.value }))}
+                                      className="w-full text-xs p-2.5 bg-[#16181D] border border-white/10 rounded text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[10px] text-slate-400 font-bold uppercase block">Profesi Medis</label>
+                                    <select
+                                      value={editStudentDraft.profession}
+                                      onChange={(e) => setEditStudentDraft((p) => ({ ...p, profession: e.target.value as User['profession'] }))}
+                                      className="w-full text-xs p-2.5 bg-[#16181D] border border-white/10 rounded text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                                    >
+                                      <option value="Apoteker" className="bg-[#16181D]">Apoteker</option>
+                                      <option value="Dokter" className="bg-[#16181D]">Dokter</option>
+                                      <option value="Mahasiswa" className="bg-[#16181D]">Mahasiswa</option>
+                                      <option value="Perawat" className="bg-[#16181D]">Perawat</option>
+                                      <option value="Bidan" className="bg-[#16181D]">Bidan</option>
+                                      <option value="Lainnya" className="bg-[#16181D]">Lainnya</option>
+                                    </select>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={saveEditStudent}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-[11px] transition cursor-pointer"
+                                  >
+                                    <Check className="h-3.5 w-3.5" /> Simpan
+                                  </button>
+                                  <button
+                                    onClick={() => setEditStudentId(null)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 rounded-lg font-bold text-[11px] transition cursor-pointer"
+                                  >
+                                    <X className="h-3.5 w-3.5" /> Batal
+                                  </button>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      }
+                      return (
+                        <tr key={student.id} className="hover:bg-white/5 transition-colors">
+                          <td className="p-4">
+                            <div className="flex items-center gap-2">
+                              <img src={student.avatar} alt={student.name} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                              <div>
+                                <div className="font-bold text-white">{student.name}</div>
+                                <div className="text-[10px] text-slate-400">{student.email}</div>
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <span className="px-2.5 py-0.5 bg-white/5 border border-white/10 text-slate-300 rounded-full font-semibold">
-                            {student.profession}
-                          </span>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex flex-wrap gap-1 max-w-xs">
-                            {student.enrolledClasses.length === 0 ? (
-                              <span className="text-slate-500 italic">Belum terdaftar</span>
-                            ) : (
-                              student.enrolledClasses.map((cid) => {
-                                const cls = classes.find((c) => c.id === cid);
-                                return (
-                                  <span key={cid} className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded font-bold text-[9px] uppercase border border-emerald-500/20">
-                                    {cls?.name || cid}
-                                  </span>
-                                );
-                              })
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <span className="text-[10px] text-slate-400 font-bold">ID: {student.id.slice(0, 10)}...</span>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="p-4">
+                            <span className="px-2.5 py-0.5 bg-white/5 border border-white/10 text-slate-300 rounded-full font-semibold">
+                              {student.profession}
+                            </span>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex flex-wrap gap-1 max-w-xs">
+                              {student.enrolledClasses.length === 0 ? (
+                                <span className="text-slate-500 italic">Belum terdaftar</span>
+                              ) : (
+                                student.enrolledClasses.map((cid) => {
+                                  const cls = classes.find((c) => c.id === cid);
+                                  return (
+                                    <span key={cid} className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded font-bold text-[9px] uppercase border border-emerald-500/20">
+                                      {cls?.name || cid}
+                                    </span>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <button
+                              onClick={() => startEditStudent(student)}
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/5 hover:bg-emerald-600 hover:text-white border border-white/10 text-slate-300 rounded-lg font-bold text-[10px] transition cursor-pointer"
+                            >
+                              <Pencil className="h-3 w-3" /> Edit
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -723,22 +853,114 @@ export default function MentorDashboard({
                 <div className="divide-y divide-white/5">
                   {classes
                     .filter((c) => c.generationId === 'gen6')
-                    .map((cls) => (
-                      <div key={cls.id} className="py-4 first:pt-0 last:pb-0">
-                        <div className="flex justify-between items-center">
-                          <span className="font-bold text-sm text-white">{cls.name}</span>
-                          <span className="text-[10px] text-slate-400 font-bold uppercase">{cls.generationName}</span>
+                    .map((cls) => {
+                      const clsMaterials = customMaterials.filter((m) => m.classId === cls.id);
+                      return (
+                        <div key={cls.id} className="py-4 first:pt-0 last:pb-0">
+                          <div className="flex justify-between items-center">
+                            <span className="font-bold text-sm text-white">{cls.name}</span>
+                            <span className="text-[10px] text-slate-400 font-bold uppercase">{cls.generationName}</span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="px-2 py-0.5 bg-white/5 text-slate-300 border border-white/5 rounded text-[9px] font-bold flex items-center gap-1">
+                              <BookOpen className="h-3 w-3" /> {cls.materialsCount} Modul
+                            </span>
+                            {clsMaterials.length > 0 && (
+                              <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded text-[9px] font-bold border border-emerald-500/20">
+                                {clsMaterials.length} Rilisan Baru
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Daftar materi yang dirilis dosen — bisa diedit/dihapus */}
+                          {clsMaterials.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                              {clsMaterials.map((mat) => {
+                                const isEditing = editMaterialId === mat.id;
+                                if (isEditing) {
+                                  return (
+                                    <div key={mat.id} className="bg-[#0F1115] border border-emerald-500/20 rounded-xl p-3 space-y-2">
+                                      <input
+                                        type="text"
+                                        value={editMaterialDraft.title}
+                                        onChange={(e) => setEditMaterialDraft((p) => ({ ...p, title: e.target.value }))}
+                                        placeholder="Judul modul"
+                                        className="w-full text-xs p-2 bg-[#16181D] border border-white/10 rounded text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                                      />
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <input
+                                          type="text"
+                                          value={editMaterialDraft.description}
+                                          onChange={(e) => setEditMaterialDraft((p) => ({ ...p, description: e.target.value }))}
+                                          placeholder="Deskripsi singkat"
+                                          className="w-full text-xs p-2 bg-[#16181D] border border-white/10 rounded text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                                        />
+                                        <input
+                                          type="text"
+                                          value={editMaterialDraft.durationOrPages}
+                                          onChange={(e) => setEditMaterialDraft((p) => ({ ...p, durationOrPages: e.target.value }))}
+                                          placeholder="Panjang (hal/menit)"
+                                          className="w-full text-xs p-2 bg-[#16181D] border border-white/10 rounded text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                                        />
+                                      </div>
+                                      <textarea
+                                        rows={3}
+                                        value={editMaterialDraft.content}
+                                        onChange={(e) => setEditMaterialDraft((p) => ({ ...p, content: e.target.value }))}
+                                        placeholder="Isi materi..."
+                                        className="w-full text-xs p-2 bg-[#16181D] border border-white/10 rounded text-white font-mono focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                                      />
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          onClick={saveEditMaterial}
+                                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-[11px] transition cursor-pointer"
+                                        >
+                                          <Check className="h-3.5 w-3.5" /> Simpan
+                                        </button>
+                                        <button
+                                          onClick={() => setEditMaterialId(null)}
+                                          className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 rounded-lg font-bold text-[11px] transition cursor-pointer"
+                                        >
+                                          <X className="h-3.5 w-3.5" /> Batal
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                return (
+                                  <div key={mat.id} className="flex items-start justify-between gap-2 bg-[#0F1115] border border-white/5 rounded-xl p-2.5">
+                                    <div className="min-w-0">
+                                      <div className="text-xs font-bold text-white truncate">{mat.title}</div>
+                                      <div className="text-[10px] text-slate-400 truncate">
+                                        {mat.type === 'video' ? 'Video' : 'PDF'} · {mat.durationOrPages}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      <button
+                                        onClick={() => startEditMaterial(mat)}
+                                        className="p-1.5 bg-white/5 hover:bg-emerald-600 hover:text-white border border-white/10 text-slate-300 rounded-lg transition cursor-pointer"
+                                        title="Edit materi"
+                                      >
+                                        <Pencil className="h-3 w-3" />
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          if (window.confirm(`Hapus materi "${mat.title}"?`)) onDeleteMaterial(mat.id);
+                                        }}
+                                        className="p-1.5 bg-white/5 hover:bg-red-600 hover:text-white border border-white/10 text-slate-300 rounded-lg transition cursor-pointer"
+                                        title="Hapus materi"
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className="px-2 py-0.5 bg-white/5 text-slate-300 border border-white/5 rounded text-[9px] font-bold flex items-center gap-1">
-                            <BookOpen className="h-3 w-3" /> {cls.materialsCount} Modul Default
-                          </span>
-                          <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded text-[9px] font-bold border border-emerald-500/20">
-                            + Interaktif Realtime
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                 </div>
               </div>
             </div>

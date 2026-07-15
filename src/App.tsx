@@ -284,6 +284,46 @@ export default function App() {
     triggerSaveState(updatedClasses, updatedStudents, forumPosts, transactions, attempts);
   };
 
+  // 3b. EDIT STUDENT (Dosen mengubah data mahasiswa)
+  const handleEditStudent = (
+    userId: string,
+    updates: { name: string; email: string; profession: User['profession'] }
+  ) => {
+    const updated = students.map((s) => (s.id === userId ? { ...s, ...updates } : s));
+    setStudents(updated);
+    triggerSaveState(classes, updated, forumPosts, transactions, attempts);
+  };
+
+  // 3c. EDIT MATERIAL (Dosen mengubah materi yang sudah dirilis)
+  const handleEditMaterial = (
+    materialId: string,
+    updates: { title: string; description: string; durationOrPages: string; content: string }
+  ) => {
+    const updatedList = customMaterials.map((m) =>
+      m.id === materialId ? { ...m, ...updates } : m
+    );
+    setCustomMaterials(updatedList);
+    localStorage.setItem('lms_custom_materials', JSON.stringify(updatedList));
+  };
+
+  // 3d. DELETE MATERIAL (Dosen menghapus materi yang dirilis)
+  const handleDeleteMaterial = (materialId: string) => {
+    const mat = customMaterials.find((m) => m.id === materialId);
+    const updatedList = customMaterials.filter((m) => m.id !== materialId);
+    setCustomMaterials(updatedList);
+    localStorage.setItem('lms_custom_materials', JSON.stringify(updatedList));
+
+    if (mat) {
+      const updatedClasses = classes.map((c) =>
+        c.id === mat.classId
+          ? { ...c, materialsCount: Math.max(0, c.materialsCount - 1) }
+          : c
+      );
+      setClasses(updatedClasses);
+      triggerSaveState(updatedClasses, students, forumPosts, transactions, attempts);
+    }
+  };
+
   // 4. ADD DISCUSSION FORUM TOPIC (Student posting)
   const handleAddForumPost = (classId: string, title: string, content: string) => {
     if (!ssoStudent) return;
@@ -495,8 +535,12 @@ export default function App() {
               transactions={transactions}
               attempts={attempts}
               forumPosts={forumPosts}
+              customMaterials={customMaterials}
               onAddMaterial={handleAddMaterial}
               onAddStudent={handleAddStudent}
+              onEditStudent={handleEditStudent}
+              onEditMaterial={handleEditMaterial}
+              onDeleteMaterial={handleDeleteMaterial}
               onAddForumReply={handleAddForumReply}
             />
           </RequireAuth>

@@ -195,6 +195,34 @@ export default function AdminDashboard({
 
   // ===================== COMPUTED VALUES =====================
 
+  // Peran per email dari tabel user_roles (override eksplisit).
+  const roleByEmail = useMemo(() => {
+    const map = new Map<string, AppRole>();
+    roles.forEach((r) => map.set(r.email.toLowerCase(), r.role));
+    return map;
+  }, [roles]);
+
+  // Gabungan SEMUA pengguna (dari daftar user + entri user_roles) supaya panel
+  // menampilkan setiap orang, bukan hanya yang sudah punya baris peran. Peran
+  // efektif = override user_roles bila ada, selain itu 'student'.
+  const combinedRoleRows = useMemo(() => {
+    const map = new Map<string, { email: string; name?: string; role: AppRole }>();
+    students.forEach((s) => {
+      const email = s.email.trim().toLowerCase();
+      if (!email) return;
+      map.set(email, { email, name: s.name, role: roleByEmail.get(email) ?? 'student' });
+    });
+    roles.forEach((r) => {
+      const email = r.email.trim().toLowerCase();
+      const existing = map.get(email);
+      map.set(email, { email, name: existing?.name, role: r.role });
+    });
+    const rank = (role: AppRole) => (role === 'admin' ? 0 : role === 'mentor' ? 1 : 2);
+    return Array.from(map.values()).sort(
+      (a, b) => rank(a.role) - rank(b.role) || a.email.localeCompare(b.email)
+    );
+  }, [students, roles, roleByEmail]);
+
   const totalRevenue = useMemo(
     () =>
       transactions
@@ -1615,7 +1643,9 @@ export default function AdminDashboard({
             {/* Daftar peran */}
             <div className="bg-[#16181D] border border-white/10 rounded-2xl p-6 shadow-lg space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-bold text-white text-sm">Daftar Peran Terdaftar</h3>
+                <h3 className="font-bold text-white text-sm">
+                  Daftar Pengguna &amp; Peran ({combinedRoleRows.length})
+                </h3>
                 <button
                   onClick={loadRoles}
                   disabled={rolesLoading}
@@ -1633,11 +1663,11 @@ export default function AdminDashboard({
                 </div>
               )}
 
-              {!rolesError && roles.length === 0 && !rolesLoading && (
-                <p className="text-xs text-slate-500">Belum ada peran yang disetel. Tambahkan lewat form di atas.</p>
+              {combinedRoleRows.length === 0 && !rolesLoading && (
+                <p className="text-xs text-slate-500">Belum ada pengguna terdaftar.</p>
               )}
 
-              {roles.length > 0 && (
+              {combinedRoleRows.length > 0 && (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -1648,9 +1678,12 @@ export default function AdminDashboard({
                       </tr>
                     </thead>
                     <tbody>
-                      {roles.map((r) => (
+                      {combinedRoleRows.map((r) => (
                         <tr key={r.email} className="border-b border-white/5">
-                          <td className="p-3 text-slate-200">{r.email}</td>
+                          <td className="p-3">
+                            <div className="text-slate-200">{r.email}</div>
+                            {r.name && <div className="text-[10px] text-slate-500">{r.name}</div>}
+                          </td>
                           <td className="p-3">
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
                               r.role === 'admin'
