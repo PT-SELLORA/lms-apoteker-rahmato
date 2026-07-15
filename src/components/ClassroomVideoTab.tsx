@@ -40,6 +40,9 @@ export default function ClassroomVideoTab({ activeClass, materials, onMaterialAc
   };
 
   const videoList = materials.filter(m => m.type === 'video');
+  // Video mock (topikal, dari playlist asli) — dipakai bila dosen belum mengisi
+  // link video, supaya player tetap memutar sesuatu saat demo.
+  const MOCK_YT_IDS = ['bIkqkGBnQwk', 'oVC7OzKto70', 'qLIsvtAUJ_k'];
   const defaultVideos: { id: string; title: string; description: string; duration: string; unsplashUrl: string; youtubeId?: string }[] = [
     {
       id: 'vid-1',
@@ -51,6 +54,7 @@ export default function ClassroomVideoTab({ activeClass, materials, onMaterialAc
         : 'Video panduan taktis melakukan konseling obat kepada pasien kronis (Diabetes, Hipertensi) menggunakan metode Three Prime Questions.',
       duration: '45 Menit',
       unsplashUrl: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=800&auto=format&fit=crop&q=80',
+      youtubeId: MOCK_YT_IDS[0],
     },
     {
       id: 'vid-2',
@@ -62,6 +66,7 @@ export default function ClassroomVideoTab({ activeClass, materials, onMaterialAc
         : 'Kuliah interaktif mengenai batasan swamedikasi obat bebas (Wajib Apoteker) untuk keluhan batuk pilek, diare, demam, maag, dan pertolongan pertama.',
       duration: '50 Menit',
       unsplashUrl: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&auto=format&fit=crop&q=80',
+      youtubeId: MOCK_YT_IDS[1],
     },
     {
       id: 'vid-3',
@@ -69,12 +74,14 @@ export default function ClassroomVideoTab({ activeClass, materials, onMaterialAc
       description: 'Pembahasan tambahan oleh Apoteker Rahmato terkait etika penyerahan obat wajib apoteker dan rujukan cepat ke dokter spesialis.',
       duration: '35 Menit',
       unsplashUrl: 'https://images.unsplash.com/photo-1579684389782-64d84b5e901a?w=800&auto=format&fit=crop&q=80',
+      youtubeId: MOCK_YT_IDS[2],
     }
   ];
 
   const playlistVideos = videoList.map((m, idx) => ({
     id: m.id,
-    youtubeId: m.youtubeId || (m.id.length === 11 ? m.id : undefined),
+    // Bila video belum diberi link oleh dosen, pakai mock topikal agar tetap main.
+    youtubeId: m.youtubeId || (m.id.length === 11 ? m.id : undefined) || MOCK_YT_IDS[idx % MOCK_YT_IDS.length],
     title: m.title,
     description: m.description,
     duration: m.durationOrPages,
