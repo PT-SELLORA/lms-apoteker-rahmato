@@ -25,13 +25,23 @@ import {
   CUSTOM_MATERIALS_KEY,
 } from '../data/coursesData';
 
+// Ambil ID YouTube dari URL (watch?v=, youtu.be/, embed/, shorts/) atau
+// terima ID 11-karakter mentah. Return string kosong bila tak dikenali.
+function extractYouTubeId(input: string): string {
+  const s = (input ?? '').trim();
+  if (!s) return '';
+  if (/^[A-Za-z0-9_-]{11}$/.test(s)) return s;
+  const m = s.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/))([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : '';
+}
+
 interface MentorDashboardProps {
   classes: Class[];
   students: User[];
   transactions: Transaction[];
   attempts: QuizAttempt[];
   forumPosts: ForumPost[];
-  onAddMaterial: (classId: string, title: string, type: 'video' | 'pdf', description: string, durationOrPages: string, content: string) => void;
+  onAddMaterial: (classId: string, title: string, type: 'video' | 'pdf', description: string, durationOrPages: string, content: string, youtubeId?: string) => void;
   onAddStudent: (name: string, email: string, profession: User['profession'], initialClassId?: string) => void;
   onEditStudent: (userId: string, updates: { name: string; email: string; profession: User['profession'] }) => void;
   onDeleteStudent: (userId: string) => void;
@@ -73,6 +83,7 @@ export default function MentorDashboard({
   const [materialDesc, setMaterialDesc] = useState('');
   const [materialLength, setMaterialLength] = useState('');
   const [materialContent, setMaterialContent] = useState('');
+  const [materialYoutubeId, setMaterialYoutubeId] = useState('');
   const [materialSuccess, setMaterialSuccess] = useState(false);
 
   // Form states for adding student
@@ -100,7 +111,9 @@ export default function MentorDashboard({
     description: string;
     durationOrPages: string;
     content: string;
-  }>({ title: '', description: '', durationOrPages: '', content: '' });
+    type: Material['type'];
+    youtubeId: string;
+  }>({ title: '', description: '', durationOrPages: '', content: '', type: 'pdf', youtubeId: '' });
   // Counter untuk memaksa hitung-ulang materi efektif setelah edit/hapus/tambah.
   const [matVersion, setMatVersion] = useState(0);
 
@@ -151,6 +164,9 @@ export default function MentorDashboard({
       description: mat.description,
       durationOrPages: mat.durationOrPages,
       content: mat.content,
+      type: mat.type,
+      // Materi video default memakai ID YouTube sebagai id materi.
+      youtubeId: mat.youtubeId ?? (/^[A-Za-z0-9_-]{11}$/.test(mat.id) ? mat.id : ''),
     });
   };
 
@@ -158,7 +174,12 @@ export default function MentorDashboard({
   const saveEditMaterial = () => {
     if (!editMaterialId || !editMaterialDraft.title.trim()) return;
     const overrides = readLS<Record<string, Partial<Material>>>(MATERIAL_OVERRIDES_KEY, {});
-    overrides[editMaterialId] = { ...(overrides[editMaterialId] ?? {}), ...editMaterialDraft };
+    const { type: _type, youtubeId, ...rest } = editMaterialDraft;
+    const patch: Partial<Material> = { ...rest };
+    if (_type === 'video') {
+      patch.youtubeId = extractYouTubeId(youtubeId) || undefined;
+    }
+    overrides[editMaterialId] = { ...(overrides[editMaterialId] ?? {}), ...patch };
     localStorage.setItem(MATERIAL_OVERRIDES_KEY, JSON.stringify(overrides));
     setEditMaterialId(null);
     setMatVersion((v) => v + 1);
@@ -228,13 +249,15 @@ export default function MentorDashboard({
       materialType,
       materialDesc || 'Bahan ajar tambahan yang diterbitkan oleh Apoteker Rahmato.',
       materialLength || (materialType === 'pdf' ? '12 Halaman' : '20 Menit'),
-      materialContent
+      materialContent,
+      materialType === 'video' ? extractYouTubeId(materialYoutubeId) : undefined
     );
 
     setMaterialTitle('');
     setMaterialDesc('');
     setMaterialLength('');
     setMaterialContent('');
+    setMaterialYoutubeId('');
     setMaterialSuccess(true);
     setMatVersion((v) => v + 1);
     setTimeout(() => setMaterialSuccess(false), 3000);
@@ -1017,6 +1040,20 @@ export default function MentorDashboard({
                   />
                 </div>
 
+                {materialType === 'video' && (
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-slate-400 font-bold uppercase block">Link / ID Video YouTube</label>
+                    <input
+                      type="text"
+                      value={materialYoutubeId}
+                      onChange={(e) => setMaterialYoutubeId(e.target.value)}
+                      placeholder="https://youtu.be/xxxx atau ID 11 karakter"
+                      className="w-full text-xs p-2.5 bg-[#0F1115] border border-white/10 rounded text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                    />
+                    <p className="text-[10px] text-slate-500">Tempel URL YouTube apa pun — ID akan diambil otomatis.</p>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-[10px] text-slate-400 font-bold uppercase block">Deskripsi Singkat</label>
@@ -1116,6 +1153,15 @@ export default function MentorDashboard({
                                           className="w-full text-xs p-2 bg-[#16181D] border border-white/10 rounded text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                                         />
                                       </div>
+                                      {editMaterialDraft.type === 'video' && (
+                                        <input
+                                          type="text"
+                                          value={editMaterialDraft.youtubeId}
+                                          onChange={(e) => setEditMaterialDraft((p) => ({ ...p, youtubeId: e.target.value }))}
+                                          placeholder="Link / ID Video YouTube (ganti video di sini)"
+                                          className="w-full text-xs p-2 bg-[#16181D] border border-emerald-500/30 rounded text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                                        />
+                                      )}
                                       <textarea
                                         rows={3}
                                         value={editMaterialDraft.content}
